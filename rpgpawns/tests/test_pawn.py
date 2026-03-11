@@ -4,6 +4,8 @@ import pytest
 from PIL import Image
 
 from rpgpawns.pawn import (
+    A4_HEIGHT_MM,
+    A4_WIDTH_MM,
     BORDER_COLOR,
     BORDER_WIDTH_PX,
     COLLAGE_COLS,
@@ -12,8 +14,6 @@ from rpgpawns.pawn import (
     COLLAGE_ROWS,
     COLLAGE_SPACING_MM,
     DPI,
-    A4_HEIGHT_MM,
-    A4_WIDTH_MM,
     MAX_HEIGHT_MM,
     MAX_WIDTH_MM,
     PADDING_MM,
@@ -139,9 +139,7 @@ def test_mirror_is_vertically_flipped():
         for x in range(0, result.width, max(1, result.width // 5)):
             orig_y = padding_px + img_h + dy
             mirror_y = padding_px + img_h - 1 - dy
-            assert result.getpixel((x, orig_y)) == result.getpixel(
-                (x, mirror_y)
-            )
+            assert result.getpixel((x, orig_y)) == result.getpixel((x, mirror_y))
 
 
 def test_top_padding_is_white():
@@ -326,11 +324,11 @@ def test_collage_margin():
     margin_px = mm_to_px(COLLAGE_MARGIN_MM)
     # Top margin row
     for x in range(0, result.width, 20):
-        for y in range(0, margin_px):
+        for y in range(margin_px):
             assert result.getpixel((x, y)) == (255, 255, 255)
     # Left margin column
     for y in range(0, result.height, 20):
-        for x in range(0, margin_px):
+        for x in range(margin_px):
             assert result.getpixel((x, y)) == (255, 255, 255)
 
 

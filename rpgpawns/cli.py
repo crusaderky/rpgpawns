@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import re
-import sys
 
 from PIL import Image
 
@@ -35,14 +34,10 @@ def parse_image_args(args: list[str]) -> list[tuple[str, int]]:
         m = _MULTIPLIER_RE.match(arg)
         if m:
             if not result:
-                raise ValueError(
-                    f"Multiplier '{arg}' has no preceding image file"
-                )
+                raise ValueError(f"Multiplier '{arg}' has no preceding image file")
             count = int(m.group(1))
             if count < 1:
-                raise ValueError(
-                    f"Multiplier must be at least 1, got '{arg}'"
-                )
+                raise ValueError(f"Multiplier must be at least 1, got '{arg}'")
             path, _ = result[-1]
             result[-1] = (path, count)
         else:
@@ -55,8 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="rpgpawns",
         description=(
-            "Convert images to paper-cut pawns for board games "
-            "and tabletop RPGs."
+            "Convert images to paper-cut pawns for board games and tabletop RPGs."
         ),
     )
     parser.add_argument(

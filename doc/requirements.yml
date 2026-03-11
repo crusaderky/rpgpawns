@@ -9,4 +9,8 @@ dependencies:
 - pip *
 - sphinx *
 - sphinx_rtd_theme *
+- pillow *
+- pip
+- pip:
+  - pillow>=10.0
 
