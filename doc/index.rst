@@ -6,12 +6,12 @@ board games and tabletop RPGs such as Dungeons & Dragons and Pathfinder.
 
 Given an input image, rpgpawns will:
 
-1. Scale it to fit within 28 mm x 48 mm at 300 DPI, preserving the original
-   aspect ratio.
+1. Scale it to fit standard Pathfinder pawn sizes (28x48mm for medium pawns)
 2. Duplicate the image along its top edge with a vertical mirror, so it can be
    folded to create a double-sided pawn.
-3. Add white padding and a faint border for easy cutting.
-4. Arrange one or more pawns on an A4 page, ready for printing.
+3. Add white padding and a border for easy cutting.
+4. Arrange one or more pawns, or multiple copies of the same pawn, on a A4 page,
+   ready for printing.
 
 Quick start
 -----------
@@ -36,6 +36,26 @@ From Python:
 
    collage = make_collage([goblin, knight, knight])
    collage.save("pawns.pdf", dpi=(300, 300))
+
+
+Pawn sizes
+----------
+
+rpgpawns implements standard Pathfinder pawn sizes:
+
+========  =========  =========== =================
+Size      Base (mm)  Height (mm) Print Height (mm)
+========  =========  =========== =================
+small     20         28          78
+medium    28         48          118
+large     48         63          148
+huge      75         99          220
+========  =========  =========== =================
+
+Print height is the image height once folded, plus a 11mm label
+to stick the the pawn into a clip, everything mirrored on the tall side.
+
+
 
 
 .. toctree::

@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
+import enum
 from collections.abc import Sequence
 
 from PIL import Image, ImageDraw
 
 DPI = 300
 MM_PER_INCH = 25.4
-MAX_WIDTH_MM = 28.0
-MAX_HEIGHT_MM = 48.0
-PADDING_MM = 4.0
+PADDING_MM = 11.0
 BORDER_COLOR = (192, 192, 192)
 BORDER_WIDTH_PX = 1
 
@@ -19,20 +18,41 @@ A4_HEIGHT_MM = 297.0
 COLLAGE_MARGIN_MM = 10.0
 COLLAGE_SPACING_MM = 10.0
 
-# Maximum pawn dimensions as produced by make_pawn
-_MAX_PAWN_WIDTH_MM = MAX_WIDTH_MM
-_MAX_PAWN_HEIGHT_MM = PADDING_MM * 2 + MAX_HEIGHT_MM * 2
 
-# Grid capacity
-COLLAGE_COLS = int(
-    (A4_WIDTH_MM - 2 * COLLAGE_MARGIN_MM + COLLAGE_SPACING_MM)
-    / (_MAX_PAWN_WIDTH_MM + COLLAGE_SPACING_MM)
-)
-COLLAGE_ROWS = int(
-    (A4_HEIGHT_MM - 2 * COLLAGE_MARGIN_MM + COLLAGE_SPACING_MM)
-    / (_MAX_PAWN_HEIGHT_MM + COLLAGE_SPACING_MM)
-)
-COLLAGE_MAX_PAWNS = COLLAGE_COLS * COLLAGE_ROWS
+class PawnSize(enum.Enum):
+    """Pawn size presets.
+
+    Each size defines the maximum width and single-image height for the
+    pawn.  See :data:`PAWN_SPECS` for the exact dimensions.
+    """
+
+    SMALL = "small"
+    MEDIUM = "medium"
+    LARGE = "large"
+    HUGE = "huge"
+
+
+PAWN_SPECS: dict[PawnSize, tuple[float, float]] = {
+    PawnSize.SMALL: (20.0, 28.0),
+    PawnSize.MEDIUM: (28.0, 48.0),
+    PawnSize.LARGE: (48.0, 63.0),
+    PawnSize.HUGE: (75.0, 99.0),
+}
+"""Maximum width and single-image height (mm) for each :class:`PawnSize`."""
+
+
+def _pawn_total_height_mm(size: PawnSize) -> float:
+    """Total pawn height: padding + image + mirrored_image + padding."""
+    _, h = PAWN_SPECS[size]
+    return PADDING_MM * 2 + h * 2
+
+
+def _pawn_dims_mm(pawn: Image.Image) -> tuple[float, float]:
+    """Return (width_mm, height_mm) of a pawn image."""
+    return (
+        pawn.width * MM_PER_INCH / DPI,
+        pawn.height * MM_PER_INCH / DPI,
+    )
 
 
 def mm_to_px(mm: float, dpi: int = DPI) -> int:
@@ -40,28 +60,34 @@ def mm_to_px(mm: float, dpi: int = DPI) -> int:
     return round(mm * dpi / MM_PER_INCH)
 
 
-def make_pawn(input_image: Image.Image) -> Image.Image:
+def make_pawn(
+    input_image: Image.Image,
+    size: PawnSize = PawnSize.MEDIUM,
+) -> Image.Image:
     """Convert an image to a paper-cut pawn image.
 
     The output image has the following properties:
 
     - 300 DPI
-    - The original image is scaled to fit within 28mm x 48mm, preserving
-      aspect ratio
+    - The original image is scaled to fit within the dimensions specified by
+      *size* (see :data:`PAWN_SPECS`), preserving aspect ratio
     - The image is duplicated along its top edge, mirrored vertically
-    - 4mm of white padding is added at the top and bottom, for a maximum
-      total height of 104mm
+    - 4 mm of white padding is added at the top and bottom
     - A thin faint grey border is drawn around the entire image
 
     Parameters
     ----------
     input_image:
         Input PIL Image in any mode and resolution.
+    size:
+        Pawn size preset.  Defaults to :attr:`PawnSize.MEDIUM`.
 
     Returns
     -------
     PIL Image in RGB mode at 300 DPI.
     """
+    max_w_mm, max_h_mm = PAWN_SPECS[size]
+
     # Composite onto white background for images with transparency
     if input_image.mode == "RGBA":
         background = Image.new("RGB", input_image.size, (255, 255, 255))
@@ -73,8 +99,8 @@ def make_pawn(input_image: Image.Image) -> Image.Image:
         img = input_image.copy()
 
     # Calculate target pixel dimensions
-    max_w_px = mm_to_px(MAX_WIDTH_MM)
-    max_h_px = mm_to_px(MAX_HEIGHT_MM)
+    max_w_px = mm_to_px(max_w_mm)
+    max_h_px = mm_to_px(max_h_mm)
 
     # Scale to fit within max dimensions, preserving aspect ratio
     orig_w, orig_h = img.size
@@ -105,64 +131,95 @@ def make_pawn(input_image: Image.Image) -> Image.Image:
         width=BORDER_WIDTH_PX,
     )
 
-    # Set DPI metadata
+    # Set DPI and pawn size metadata
     canvas.info["dpi"] = (DPI, DPI)
+    canvas.info["pawn_size"] = size
 
     return canvas
+
+
+# ---------------------------------------------------------------------------
+# Collage layout — column-based packing
+# ---------------------------------------------------------------------------
 
 
 def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
     """Arrange pawn images on an A4 page.
 
-    Images are placed left-to-right along the short side of the page first,
-    then top-to-bottom, in a grid with at least 10mm spacing and 10mm margin.
+    Pawns are packed into columns from left to right.  Tallest pawns are
+    placed first; shorter pawns are stacked below taller ones in the same
+    column when they fit.  Pawns already include built-in top/bottom
+    padding, so no extra vertical gap is added within a column.
 
     Parameters
     ----------
     pawns:
-        Pawn images as returned by :func:`make_pawn`. Must contain between
-        1 and :data:`~rpgpawns.pawn.COLLAGE_MAX_PAWNS` images (inclusive).
+        Pawn images as returned by :func:`make_pawn`.  Must not be empty.
 
     Returns
     -------
-    PIL Image in RGB mode at 300 DPI, sized to A4 (210mm x 297mm).
+    PIL Image in RGB mode at 300 DPI, sized to A4 (210 mm x 297 mm).
 
     Raises
     ------
     ValueError
-        If ``pawns`` is empty or contains more than
-        :data:`~rpgpawns.pawn.COLLAGE_MAX_PAWNS` images.
+        If *pawns* is empty or too many pawns to fit on a single page.
     """
-    if len(pawns) == 0:
+    if not pawns:
         raise ValueError("pawns must not be empty")
-    if len(pawns) > COLLAGE_MAX_PAWNS:
-        raise ValueError(
-            f"Too many pawns: got {len(pawns)}, maximum is {COLLAGE_MAX_PAWNS}"
-        )
 
+    avail_w_mm = A4_WIDTH_MM - 2 * COLLAGE_MARGIN_MM
+    avail_h_mm = A4_HEIGHT_MM - 2 * COLLAGE_MARGIN_MM
+    sp = COLLAGE_SPACING_MM
+
+    # Sort pawns tallest-first for greedy column packing
+    sorted_pawns = sorted(pawns, key=lambda p: (p.height, p.width), reverse=True)
+
+    # Each column: [col_width_mm, col_height_mm, [(pawn, y_offset_mm)]]
+    columns: list[list] = []  # mutable sub-lists for in-place updates
+
+    for pawn in sorted_pawns:
+        pw_mm, ph_mm = _pawn_dims_mm(pawn)
+
+        # Find the best existing column (least remaining space that still fits)
+        best_idx = -1
+        best_remaining = float("inf")
+        for i, col in enumerate(columns):
+            col_w, col_h = col[0], col[1]
+            if col_w >= pw_mm and col_h + ph_mm <= avail_h_mm:
+                remaining = avail_h_mm - col_h - ph_mm
+                if remaining < best_remaining:
+                    best_idx = i
+                    best_remaining = remaining
+
+        if best_idx >= 0:
+            col = columns[best_idx]
+            col[2].append((pawn, col[1]))
+            col[1] += ph_mm
+        else:
+            # Start a new column
+            total_w = sum(c[0] for c in columns)
+            if columns:
+                total_w += len(columns) * sp
+            if total_w + (sp if columns else 0) + pw_mm > avail_w_mm:
+                raise ValueError("Too many pawns to fit on a single A4 page")
+            columns.append([pw_mm, ph_mm, [(pawn, 0.0)]])
+
+    # Render
     page_w = mm_to_px(A4_WIDTH_MM)
     page_h = mm_to_px(A4_HEIGHT_MM)
     margin_px = mm_to_px(COLLAGE_MARGIN_MM)
     spacing_px = mm_to_px(COLLAGE_SPACING_MM)
-    cell_w = mm_to_px(_MAX_PAWN_WIDTH_MM)
-    cell_h = mm_to_px(_MAX_PAWN_HEIGHT_MM)
-
     page = Image.new("RGB", (page_w, page_h), (255, 255, 255))
 
-    for i, pawn in enumerate(pawns):
-        col = i % COLLAGE_COLS
-        row = i // COLLAGE_COLS
-
-        # Top-left corner of the grid cell
-        cell_x = margin_px + col * (cell_w + spacing_px)
-        cell_y = margin_px + row * (cell_h + spacing_px)
-
-        # Center pawn within the cell
-        offset_x = (cell_w - pawn.width) // 2
-        offset_y = (cell_h - pawn.height) // 2
-
-        page.paste(pawn, (cell_x + offset_x, cell_y + offset_y))
+    x_px = margin_px
+    for col_w_mm, _col_h_mm, entries in columns:
+        col_w_px = mm_to_px(col_w_mm)
+        for pawn, y_mm in entries:
+            offset_x = (col_w_px - pawn.width) // 2
+            y_px = margin_px + mm_to_px(y_mm)
+            page.paste(pawn, (x_px + offset_x, y_px))
+        x_px += col_w_px + spacing_px
 
     page.info["dpi"] = (DPI, DPI)
-
     return page
