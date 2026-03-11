@@ -50,9 +50,7 @@ def parse_image_args(
             or m.group("count_only") is not None
         ):
             if not result:
-                raise ValueError(
-                    f"Modifier '{arg}' has no preceding image file"
-                )
+                raise ValueError(f"Modifier '{arg}' has no preceding image file")
 
             size_str = m.group("size") or m.group("size_only")
             count_str = m.group("count") or m.group("count_only")

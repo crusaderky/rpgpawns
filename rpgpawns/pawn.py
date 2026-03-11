@@ -158,7 +158,7 @@ def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
 
     Returns
     -------
-    PIL Image in RGB mode at 300 DPI, sized to A4 (210 mm × 297 mm).
+    PIL Image in RGB mode at 300 DPI, sized to A4 (210 mm x 297 mm).
 
     Raises
     ------
@@ -202,9 +202,7 @@ def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
             if columns:
                 total_w += len(columns) * sp
             if total_w + (sp if columns else 0) + pw_mm > avail_w_mm:
-                raise ValueError(
-                    "Too many pawns to fit on a single A4 page"
-                )
+                raise ValueError("Too many pawns to fit on a single A4 page")
             columns.append([pw_mm, ph_mm, [(pawn, 0.0)]])
 
     # Render

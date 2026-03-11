@@ -9,7 +9,6 @@ from rpgpawns.pawn import (
     BORDER_COLOR,
     BORDER_WIDTH_PX,
     COLLAGE_MARGIN_MM,
-    COLLAGE_SPACING_MM,
     DPI,
     PADDING_MM,
     PAWN_SPECS,
