@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw
 
 DPI = 300
 MM_PER_INCH = 25.4
-PADDING_MM = 4.0
+PADDING_MM = 11.0
 BORDER_COLOR = (192, 192, 192)
 BORDER_WIDTH_PX = 1
 

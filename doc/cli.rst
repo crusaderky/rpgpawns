@@ -38,20 +38,6 @@ Options
 ``-h``, ``--help``
    Show the help message and exit.
 
-Pawn sizes
-----------
-
-========  =========  ===========
-Size      Base (mm)  Height (mm)
-========  =========  ===========
-small     20         28
-medium    28         48
-large     48         63
-huge      75         99
-========  =========  ===========
-
-All sizes include 4 mm of white padding at the top and bottom.
-
 Examples
 --------
 

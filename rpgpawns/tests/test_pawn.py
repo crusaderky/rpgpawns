@@ -299,6 +299,7 @@ def test_collage_margin():
 def test_collage_mixed_sizes():
     """A collage with different pawn sizes should render without error."""
     pawns = [
+        _make_test_pawn(size=PawnSize.HUGE),
         _make_test_pawn(size=PawnSize.LARGE),
         _make_test_pawn(size=PawnSize.MEDIUM),
         _make_test_pawn(size=PawnSize.SMALL),
