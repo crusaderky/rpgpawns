@@ -167,6 +167,7 @@ lint = { cmd = "lefthook run pre-commit --all-files --force", description = "Run
 
 [tool.pixi.feature.smoke.tasks]
 smoke-test = { cmd = "python smoke_test.py", description = "Test import the library and print essential information" }
+cli = "python -m rpgpawns.cli"
 
 [tool.pixi.feature.tests.dependencies]
 pytest = "*"
