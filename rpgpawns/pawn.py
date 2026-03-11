@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import enum
-import math
 from collections.abc import Sequence
 
 from PIL import Image, ImageDraw
@@ -48,64 +47,12 @@ def _pawn_total_height_mm(size: PawnSize) -> float:
     return PADDING_MM * 2 + h * 2
 
 
-# ---------------------------------------------------------------------------
-# Collage slot system
-# ---------------------------------------------------------------------------
-
-# Valid sub-pawn arrangements in each slot type: (sub_size, grid_cols, grid_rows)
-_SLOT_ARRANGEMENTS: dict[PawnSize, list[tuple[PawnSize, int, int]]] = {
-    PawnSize.HUGE: [
-        (PawnSize.HUGE, 1, 1),
-        (PawnSize.MEDIUM, 2, 2),
-        (PawnSize.SMALL, 3, 3),
-    ],
-    PawnSize.LARGE: [
-        (PawnSize.LARGE, 1, 1),
-        (PawnSize.SMALL, 2, 2),
-    ],
-    PawnSize.MEDIUM: [
-        (PawnSize.MEDIUM, 1, 1),
-        (PawnSize.SMALL, 1, 1),
-    ],
-    PawnSize.SMALL: [
-        (PawnSize.SMALL, 1, 1),
-    ],
-}
-
-# Quick lookup: (slot_type, sub_size) -> (grid_cols, grid_rows)
-_GRID_LAYOUT: dict[tuple[PawnSize, PawnSize], tuple[int, int]] = {
-    (slot_type, sub_size): (nc, nr)
-    for slot_type, arrangements in _SLOT_ARRANGEMENTS.items()
-    for sub_size, nc, nr in arrangements
-}
-
-
-def _build_row_specs() -> dict[PawnSize, tuple[float, float, int]]:
-    """Compute (slot_width_mm, slot_height_mm, slots_per_row) for each row type.
-
-    Slot dimensions are the maximum extent needed across all valid
-    sub-pawn arrangements, ensuring at least ``COLLAGE_SPACING_MM``
-    between sub-pawns.
-    """
-    sp = COLLAGE_SPACING_MM
-    avail_w = A4_WIDTH_MM - 2 * COLLAGE_MARGIN_MM
-
-    specs: dict[PawnSize, tuple[float, float, int]] = {}
-    for size, arrangements in _SLOT_ARRANGEMENTS.items():
-        slot_w = max(
-            PAWN_SPECS[sub][0] * nc + sp * (nc - 1) for sub, nc, _ in arrangements
-        )
-        slot_h = max(
-            _pawn_total_height_mm(sub) * nr + sp * (nr - 1)
-            for sub, _, nr in arrangements
-        )
-        n_slots = int((avail_w + sp) / (slot_w + sp))
-        specs[size] = (slot_w, slot_h, n_slots)
-
-    return specs
-
-
-_ROW_SPECS = _build_row_specs()
+def _pawn_dims_mm(pawn: Image.Image) -> tuple[float, float]:
+    """Return (width_mm, height_mm) of a pawn image."""
+    return (
+        pawn.width * MM_PER_INCH / DPI,
+        pawn.height * MM_PER_INCH / DPI,
+    )
 
 
 def mm_to_px(mm: float, dpi: int = DPI) -> int:
@@ -192,102 +139,17 @@ def make_pawn(
 
 
 # ---------------------------------------------------------------------------
-# Collage layout
+# Collage layout — column-based packing
 # ---------------------------------------------------------------------------
-
-
-def _plan_rows(
-    n_huge: int, n_large: int, n_medium: int, n_small: int
-) -> list[tuple[PawnSize, list[tuple[PawnSize, int]]]]:
-    """Plan row-by-row layout, filling unused slots with smaller pawns.
-
-    Returns a list of ``(row_type, slots)`` where each slot is
-    ``(sub_pawn_size, count)``.
-    """
-    rows: list[tuple[PawnSize, list[tuple[PawnSize, int]]]] = []
-
-    # --- Huge rows (2 slots each) ---
-    huge_placed = 0
-    for _ in range(math.ceil(n_huge / 2) if n_huge else 0):
-        slots: list[tuple[PawnSize, int]] = []
-        for _ in range(_ROW_SPECS[PawnSize.HUGE][2]):
-            if huge_placed < n_huge:
-                slots.append((PawnSize.HUGE, 1))
-                huge_placed += 1
-            elif n_medium > 0:
-                take = min(n_medium, 4)
-                slots.append((PawnSize.MEDIUM, take))
-                n_medium -= take
-            elif n_small > 0:
-                take = min(n_small, 9)
-                slots.append((PawnSize.SMALL, take))
-                n_small -= take
-        rows.append((PawnSize.HUGE, slots))
-
-    # --- Large rows (3 slots each) ---
-    large_placed = 0
-    for _ in range(math.ceil(n_large / 3) if n_large else 0):
-        slots = []
-        for _ in range(_ROW_SPECS[PawnSize.LARGE][2]):
-            if large_placed < n_large:
-                slots.append((PawnSize.LARGE, 1))
-                large_placed += 1
-            elif n_small > 0:
-                take = min(n_small, 4)
-                slots.append((PawnSize.SMALL, take))
-                n_small -= take
-        rows.append((PawnSize.LARGE, slots))
-
-    # --- Medium rows (5 slots each) ---
-    medium_placed = 0
-    for _ in range(math.ceil(n_medium / 5) if n_medium else 0):
-        slots = []
-        for _ in range(_ROW_SPECS[PawnSize.MEDIUM][2]):
-            if medium_placed < n_medium:
-                slots.append((PawnSize.MEDIUM, 1))
-                medium_placed += 1
-            elif n_small > 0:
-                slots.append((PawnSize.SMALL, 1))
-                n_small -= 1
-        rows.append((PawnSize.MEDIUM, slots))
-
-    # --- Small rows (6 slots each) ---
-    while n_small > 0:
-        take = min(n_small, _ROW_SPECS[PawnSize.SMALL][2])
-        slots = [(PawnSize.SMALL, 1) for _ in range(take)]
-        n_small -= take
-        rows.append((PawnSize.SMALL, slots))
-
-    return rows
-
-
-def _corner_positions(
-    n_cols: int, n_rows: int, slot_w: int, slot_h: int, pawn_w: int, pawn_h: int
-) -> list[tuple[int, int]]:
-    """Compute corner-aligned grid positions within a slot (in pixels).
-
-    For a 1x1 grid the pawn is centered.  For larger grids, outer pawns
-    are pushed to the edges of the slot.
-    """
-    if n_cols <= 1:
-        xs = [(slot_w - pawn_w) // 2]
-    else:
-        xs = [i * (slot_w - pawn_w) // (n_cols - 1) for i in range(n_cols)]
-
-    if n_rows <= 1:
-        ys = [(slot_h - pawn_h) // 2]
-    else:
-        ys = [i * (slot_h - pawn_h) // (n_rows - 1) for i in range(n_rows)]
-
-    return [(x, y) for y in ys for x in xs]
 
 
 def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
     """Arrange pawn images on an A4 page.
 
-    Pawns are laid out in rows from the top of the page.  Larger pawns get
-    rows first; unused slots in a row are filled with smaller pawns when
-    possible.  Within an oversized slot, sub-pawns are corner-aligned.
+    Pawns are packed into columns from left to right.  Tallest pawns are
+    placed first; shorter pawns are stacked below taller ones in the same
+    column when they fit.  Pawns already include built-in top/bottom
+    padding, so no extra vertical gap is added within a column.
 
     Parameters
     ----------
@@ -306,66 +168,60 @@ def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
     if not pawns:
         raise ValueError("pawns must not be empty")
 
-    # Count by size
-    counts: dict[PawnSize, int] = {s: 0 for s in PawnSize}
-    for p in pawns:
-        counts[p.info.get("pawn_size", PawnSize.MEDIUM)] += 1
+    avail_w_mm = A4_WIDTH_MM - 2 * COLLAGE_MARGIN_MM
+    avail_h_mm = A4_HEIGHT_MM - 2 * COLLAGE_MARGIN_MM
+    sp = COLLAGE_SPACING_MM
 
-    # Plan layout
-    rows = _plan_rows(
-        counts[PawnSize.HUGE],
-        counts[PawnSize.LARGE],
-        counts[PawnSize.MEDIUM],
-        counts[PawnSize.SMALL],
-    )
+    # Sort pawns tallest-first for greedy column packing
+    sorted_pawns = sorted(pawns, key=lambda p: (p.height, p.width), reverse=True)
 
-    # Check total height
-    avail_h = A4_HEIGHT_MM - 2 * COLLAGE_MARGIN_MM
-    if rows:
-        total_h = sum(_ROW_SPECS[rt][1] for rt, _ in rows)
-        total_h += (len(rows) - 1) * COLLAGE_SPACING_MM
-        if total_h > avail_h:
-            raise ValueError(
-                f"Too many pawns to fit on a single A4 page "
-                f"(need {total_h:.0f} mm, have {avail_h:.0f} mm available)"
-            )
+    # Each column: [col_width_mm, col_height_mm, [(pawn, y_offset_mm)]]
+    columns: list[list] = []  # mutable sub-lists for in-place updates
 
-    # Build pawn queues by size
-    queues: dict[PawnSize, list[Image.Image]] = {s: [] for s in PawnSize}
-    for p in pawns:
-        queues[p.info.get("pawn_size", PawnSize.MEDIUM)].append(p)
+    for pawn in sorted_pawns:
+        pw_mm, ph_mm = _pawn_dims_mm(pawn)
 
+        # Find the best existing column (least remaining space that still fits)
+        best_idx = -1
+        best_remaining = float("inf")
+        for i, col in enumerate(columns):
+            col_w, col_h = col[0], col[1]
+            if col_w >= pw_mm and col_h + ph_mm <= avail_h_mm:
+                remaining = avail_h_mm - col_h - ph_mm
+                if remaining < best_remaining:
+                    best_idx = i
+                    best_remaining = remaining
+
+        if best_idx >= 0:
+            col = columns[best_idx]
+            col[2].append((pawn, col[1]))
+            col[1] += ph_mm
+        else:
+            # Start a new column
+            total_w = sum(c[0] for c in columns)
+            if columns:
+                total_w += len(columns) * sp
+            if total_w + (sp if columns else 0) + pw_mm > avail_w_mm:
+                raise ValueError(
+                    "Too many pawns to fit on a single A4 page"
+                )
+            columns.append([pw_mm, ph_mm, [(pawn, 0.0)]])
+
+    # Render
     page_w = mm_to_px(A4_WIDTH_MM)
     page_h = mm_to_px(A4_HEIGHT_MM)
     margin_px = mm_to_px(COLLAGE_MARGIN_MM)
     spacing_px = mm_to_px(COLLAGE_SPACING_MM)
     page = Image.new("RGB", (page_w, page_h), (255, 255, 255))
 
-    y_px = margin_px
-    for row_type, slot_list in rows:
-        slot_w_mm, slot_h_mm, _ = _ROW_SPECS[row_type]
-        slot_w_px = mm_to_px(slot_w_mm)
-        slot_h_px = mm_to_px(slot_h_mm)
-
-        x_px = margin_px
-        for sub_size, count in slot_list:
-            sub_pawns = [queues[sub_size].pop(0) for _ in range(count)]
-            n_cols, n_rows = _GRID_LAYOUT[(row_type, sub_size)]
-            positions = _corner_positions(
-                n_cols,
-                n_rows,
-                slot_w_px,
-                slot_h_px,
-                sub_pawns[0].width,
-                sub_pawns[0].height,
-            )
-            for i, sub_pawn in enumerate(sub_pawns):
-                px, py = positions[i]
-                page.paste(sub_pawn, (x_px + px, y_px + py))
-
-            x_px += slot_w_px + spacing_px
-
-        y_px += slot_h_px + spacing_px
+    x_px = margin_px
+    for col_w_mm, _col_h_mm, entries in columns:
+        col_w_px = mm_to_px(col_w_mm)
+        for pawn, y_mm in entries:
+            offset_x = (col_w_px - pawn.width) // 2
+            y_px = margin_px + mm_to_px(y_mm)
+            page.paste(pawn, (x_px + offset_x, y_px))
+        x_px += col_w_px + spacing_px
 
     page.info["dpi"] = (DPI, DPI)
     return page
