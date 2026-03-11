@@ -3,7 +3,7 @@ include LICENSE
 include *.md
 include *.py
 recursive-include doc *
-recursive-include TEMPLATE *
+recursive-include rpgpawns *
 prune doc/_build
 global-exclude __pycache__
 global-exclude *.pyc

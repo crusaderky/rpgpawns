@@ -1,10 +1,9 @@
-.. currentmodule:: TEMPLATE
+.. currentmodule:: rpgpawns
 
 What's New
 ==========
 
-v0.1.0 (TODO YYYY-MM-DD)
-------------------------
+v0.1.0 (unreleased)
+-------------------
 
 Initial release.
-TODO add as needed

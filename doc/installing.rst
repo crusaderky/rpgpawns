@@ -14,7 +14,7 @@ Installing with conda
 
 .. code-block:: bash
 
-    conda install -c conda-forge TEMPLATE
+    conda install -c conda-forge rpgpawns
 
 
 Installing with pip
@@ -22,7 +22,7 @@ Installing with pip
 
 .. code-block:: bash
 
-    pip install TEMPLATE
+    pip install rpgpawns
 
 
 .. _mindeps_policy:
@@ -35,4 +35,4 @@ This project adopts a rolling policy based on `SPEC 0
 supported version of its dependencies.
 
 You can see the actual minimum tested versions in `pyproject.toml
-<https://github.com/TODO/TEMPLATE/blob/main/pyproject.toml>`_.
+<https://github.com/crusaderky/rpgpawns/blob/main/pyproject.toml>`_.

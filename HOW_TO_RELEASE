@@ -31,20 +31,20 @@ Time required: about an hour.
       git commit -a -m 'Revert to dev version'
       git push origin main
     You're done pushing to main!
-11. Issue the release on GitHub. Open https://github.com/TODO/TEMPLATE/releases;
+11. Issue the release on GitHub. Open https://github.com/crusaderky/rpgpawns/releases;
     the new release should have automatically appeared. Otherwise, click on
     "Draft a new release" and paste in the latest from whats-new.rst.
 12. Use twine to register and upload the release on pypi. Be careful, you can't
     take this back!
       pixi run twine-upload
     You will need to be listed as a package owner at
-    https://pypi.python.org/pypi/TEMPLATE for this to work.
-13. Update the docs. Login to https://readthedocs.org/projects/TEMPLATE/versions/
+    https://pypi.python.org/pypi/rpgpawns for this to work.
+13. Update the docs. Login to https://readthedocs.org/projects/rpgpawns/versions/
     and switch your new release tag (at the bottom) from "Inactive" to "Active".
     It should now build automatically.
     Make sure that both the new tagged version and 'stable' build successfully.
 14. Update conda-forge.
-14a.  Clone https://github.com/conda-forge/TEMPLATE-feedstock
+14a.  Clone https://github.com/conda-forge/rpgpawns-feedstock
 14b.  Update the version number and sha256 in meta.yaml.
       You can calculate sha256 with
         sha256sum dist/*
@@ -55,8 +55,8 @@ Time required: about an hour.
       Wait for the rerender commit (it may take a few minutes).
 14f.  Wait for CI to pass and merge.
 14g.  The next day, test the conda-forge release
-        conda search TEMPLATE
-        conda create -n TEMPLATE-test TEMPLATE
-        conda activate TEMPLATE-test
+        conda search rpgpawns
+        conda create -n rpgpawns-test rpgpawns
+        conda activate rpgpawns-test
         conda list
-        python -c 'import TEMPLATE'
+        python -c 'import rpgpawns'

@@ -1,5 +1,5 @@
-TEMPLATE: TODO description
-==========================
+rpgpawns: Convert any image to a paper-cut pawn for board games and tabletop RPGs
+=================================================================================
 
 .. toctree::
 

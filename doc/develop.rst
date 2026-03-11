@@ -6,7 +6,7 @@ Reporting issues
 ----------------
 
 If you find a bug or want to suggest a new feature, please report it on the
-`GitHub issues page <https://github.com/TODO/TEMPLATE/issues>`_.
+`GitHub issues page <https://github.com/crusaderky/rpgpawns/issues>`_.
 
 Before you report an issue, please check if it can still be reproduced with the
 latest version of this software.
@@ -27,16 +27,16 @@ Deploying a development environment
 
 .. code-block:: bash
 
-     git clone git@github.com:TODO/TEMPLATE.git
-     cd TEMPLATE
+     git clone git@github.com:crusaderky/rpgpawns.git
+     cd rpgpawns
 
 2. `Install pixi <https://pixi.sh/latest/#installation>`_
 3. To keep a fork in sync with the upstream source:
 
 .. code-block:: bash
 
-   cd TEMPLATE
-   git remote add upstream git@github.com:TODO/TEMPLATE.git
+   cd rpgpawns
+   git remote add upstream git@github.com:crusaderky/rpgpawns.git
    git remote -v
    git fetch -a upstream
    git checkout main

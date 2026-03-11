@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 # TODO
-from TEMPLATE.helloworld import hello
+from rpgpawns.helloworld import hello
 
 
 def test_hello():

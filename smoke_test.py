@@ -3,10 +3,10 @@
 import platform
 import sys
 
-import TEMPLATE
+import rpgpawns
 
 print("Python interpreter:", sys.executable)
 print("Python version    :", sys.version)
 print("Platform          :", platform.platform())
-print("Library path      :", TEMPLATE.__file__)
-print("Library version   :", TEMPLATE.__version__)
+print("Library path      :", rpgpawns.__file__)
+print("Library version   :", rpgpawns.__version__)

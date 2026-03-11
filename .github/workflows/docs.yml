@@ -34,5 +34,5 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: TEMPLATE-docs
+          name: rpgpawns-docs
           path: build/html
