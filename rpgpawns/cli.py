@@ -7,41 +7,66 @@ import re
 
 from PIL import Image
 
-from rpgpawns.pawn import DPI, make_collage, make_pawn
+from rpgpawns.pawn import DPI, PawnSize, make_collage, make_pawn
 
-_MULTIPLIER_RE = re.compile(r"^x(\d+)$", re.IGNORECASE)
+_SIZE_NAMES = {s.value for s in PawnSize}
+
+# Matches modifiers like "small:2", "large", "3", "medium:4"
+_MODIFIER_RE = re.compile(
+    r"^(?:(?P<size>[a-z]+):(?P<count>\d+)"  # size:count
+    r"|(?P<size_only>[a-z]+)"  # size alone
+    r"|(?P<count_only>\d+))$",  # count alone
+    re.IGNORECASE,
+)
 
 
-def parse_image_args(args: list[str]) -> list[tuple[str, int]]:
-    """Parse interleaved image paths and ``xN`` multipliers.
+def parse_image_args(
+    args: list[str],
+) -> list[tuple[str, PawnSize, int]]:
+    """Parse interleaved image paths and ``[size][:count]`` modifiers.
 
     Parameters
     ----------
     args:
-        List of positional arguments, e.g. ``["foo.jpg", "bar.png", "x2"]``.
+        List of positional arguments, e.g.
+        ``["foo.jpg", "small:2", "bar.png", "large"]``.
 
     Returns
     -------
-    List of ``(path, count)`` tuples.
+    List of ``(path, size, count)`` tuples.
 
     Raises
     ------
     ValueError
-        If a multiplier has no preceding image or has a count < 1.
+        If a modifier has no preceding image, has a count < 1, or
+        specifies an unknown size name.
     """
-    result: list[tuple[str, int]] = []
+    result: list[tuple[str, PawnSize, int]] = []
     for arg in args:
-        m = _MULTIPLIER_RE.match(arg)
-        if m:
+        m = _MODIFIER_RE.match(arg)
+        if m and (
+            m.group("size_only") in _SIZE_NAMES
+            or m.group("size") in _SIZE_NAMES
+            or m.group("count_only") is not None
+        ):
             if not result:
-                raise ValueError(f"Multiplier '{arg}' has no preceding image file")
-            count = int(m.group(1))
+                raise ValueError(
+                    f"Modifier '{arg}' has no preceding image file"
+                )
+
+            size_str = m.group("size") or m.group("size_only")
+            count_str = m.group("count") or m.group("count_only")
+
+            size = PawnSize(size_str) if size_str else result[-1][1]
+            count = int(count_str) if count_str else 1
+
             if count < 1:
-                raise ValueError(f"Multiplier must be at least 1, got '{arg}'")
-            path, _ = result[-1]
-            result[-1] = (path, count)
+                raise ValueError(f"Count must be at least 1, got '{arg}'")
+
+            path = result[-1][0]
+            result[-1] = (path, size, count)
         else:
-            result.append((arg, 1))
+            result.append((arg, PawnSize.MEDIUM, 1))
     return result
 
 
@@ -56,10 +81,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "images",
         nargs="+",
-        metavar="IMAGE_OR_MULTIPLIER",
+        metavar="IMAGE_OR_MODIFIER",
         help=(
-            "Image files (.jpg/.png) optionally followed by xN "
-            "to replicate the pawn N times."
+            "Image files (.jpg/.png) optionally followed by a size/count "
+            "modifier: small:2, medium:3, large, huge:1, or just a count "
+            "like 3 (defaults to medium)."
         ),
     )
     parser.add_argument(
@@ -82,9 +108,9 @@ def main(argv: list[str] | None = None) -> None:
         parser.error(str(exc))
 
     pawns: list[Image.Image] = []
-    for path, count in entries:
+    for path, size, count in entries:
         with Image.open(path) as img:
-            pawn = make_pawn(img)
+            pawn = make_pawn(img, size=size)
         for _ in range(count):
             pawns.append(pawn)
 
