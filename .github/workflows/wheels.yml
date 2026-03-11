@@ -43,6 +43,10 @@ jobs:
           cp ${{ github.workspace }}/smoke_test.py .
           python smoke_test.py
 
+      - name: Smoke test CLI
+        working-directory: /tmp
+        run: rpgpawns --help
+
       - uses: actions/upload-artifact@v7
         with:
           name: dist
