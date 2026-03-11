@@ -198,7 +198,7 @@ html_last_updated_fmt = today_fmt
 # html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = "TEMPLATEdoc"
+htmlhelp_basename = "rpgpawnsdoc"
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -296,12 +296,6 @@ texinfo_documents = [
 
 # Configuration for intersphinx
 intersphinx_mapping = {
-    # TODO add/remove project dependencies
     "python": ("https://docs.python.org/3/", None),
-    "dask": ("https://docs.dask.org/en/latest/", None),
-    "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
-    "numpy": ("https://docs.scipy.org/doc/numpy/", None),
-    "numba": ("https://numba.readthedocs.io/en/stable/", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy/reference/", None),
-    "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "pillow": ("https://pillow.readthedocs.io/en/stable/", None),
 }

@@ -4,9 +4,8 @@ Installation
 Required dependencies
 ---------------------
 
-TODO add more requirements
-
 - Python 3.11 or later
+- `Pillow <https://python-pillow.org/>`_ 10.0 or later
 
 
 Installing with conda

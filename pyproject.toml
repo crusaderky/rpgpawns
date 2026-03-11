@@ -29,9 +29,7 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-  # TODO your project dependencies here
-  # numpy >= 1.23
-  # pandas >= 2.0
+  "Pillow >= 10.0",
 ]
 dynamic = ["version"]
 
@@ -44,6 +42,9 @@ changelog = "https://rpgpawns.readthedocs.io/en/latest/whats-new.html"
 [project.readme]
 text = "Convert any image to a paper-cut pawn for board games and tabletop RPGs"
 content-type = "text/plain"
+
+[project.scripts]
+rpgpawns = "rpgpawns.cli:main"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
@@ -146,8 +147,7 @@ platforms = ["linux-64", "linux-aarch64", "osx-64", "osx-arm64", "win-64"]
 
 [tool.pixi.dependencies]
 python = "*"
-# TODO repeat dependencies here
-# No need to repeat minimum version; = "*" is enough
+pillow = "*"
 
 [tool.pixi.feature.lint.dependencies]
 lefthook = "*"
@@ -161,8 +161,6 @@ codespell = "*"
 blacken-docs = "*"
 validate-pyproject = "*"
 sphinx-lint = "*"
-# mypy check dependencies
-# TODO typed libraries for mypy here
 
 [tool.pixi.feature.lint.tasks]
 install-git-hooks = { cmd = "lefthook install", description = "Install pre-commit hooks" }
@@ -209,19 +207,14 @@ pytest-run-parallel = "*"
 
 [tool.pixi.feature.mindeps.dependencies]
 python = "=3.11"
-# TODO repeat dependencies here, but use = instead of >=
+pillow = "=10.0"
 
 [tool.pixi.feature.upstream.dependencies]
 python = "=3.14"
-# TODO repeat here all default dependencies that are not from nightly wheels / git tip
 
 [tool.pixi.feature.upstream.pypi-dependencies]
 # TODO uncomment relevant dependencies
-# numpy = { index = "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple" }
-# pandas = { index = "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple" }
-# scipy = { index = "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple" }
-# xarray = { index = "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple" }
-# dask = { git = "https://github.com/dask/dask.git" }
+pillow = { index = "https://pypi.anaconda.org/scientific-python-nightly-wheels/simple" }
 
 [tool.pixi.feature.dist.dependencies]
 python-build = "*"

@@ -1,7 +1,6 @@
 import importlib.metadata
 
-# Import implementation modules
-from rpgpawns.helloworld import hello
+from rpgpawns.pawn import make_collage, make_pawn
 
 try:
     __version__ = importlib.metadata.version("rpgpawns")
@@ -10,4 +9,4 @@ except importlib.metadata.PackageNotFoundError:  # pragma: nocover
     __version__ = "9999"
 
 
-__all__ = ("__version__", "hello")
+__all__ = ("__version__", "make_collage", "make_pawn")
