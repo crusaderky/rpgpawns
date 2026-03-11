@@ -36,8 +36,9 @@ jobs:
           - py311
           - py314
         include:
-          - os: ubuntu-latest
-            environment: upstream
+          # Pillow main is broken, please retest later
+          # - os: ubuntu-latest
+          #   environment: upstream
           - os: ubuntu-latest
             environment: nogil
 

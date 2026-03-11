@@ -4,7 +4,6 @@ import pytest
 from PIL import Image
 
 from rpgpawns.cli import main, parse_image_args
-from rpgpawns.pawn import DPI
 
 
 def _create_test_image(path, color=(255, 0, 0)):
@@ -129,6 +128,6 @@ def test_main_multiple_images(tmp_path):
     assert output_path.stat().st_size > 0
 
 
-def test_main_no_args_exits(capsys):
+def test_main_no_args_exits():
     with pytest.raises(SystemExit, match="2"):
         main([])
