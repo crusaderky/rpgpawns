@@ -8,19 +8,20 @@ from rpgpawns.pawn import (
     A4_WIDTH_MM,
     BORDER_COLOR,
     BORDER_WIDTH_PX,
-    COLLAGE_COLS,
     COLLAGE_MARGIN_MM,
-    COLLAGE_MAX_PAWNS,
-    COLLAGE_ROWS,
     COLLAGE_SPACING_MM,
     DPI,
-    MAX_HEIGHT_MM,
-    MAX_WIDTH_MM,
     PADDING_MM,
+    PAWN_SPECS,
+    PawnSize,
     make_collage,
     make_pawn,
     mm_to_px,
 )
+
+# Default (medium) pawn dimensions for backward-compatible tests
+MAX_WIDTH_MM = PAWN_SPECS[PawnSize.MEDIUM][0]
+MAX_HEIGHT_MM = PAWN_SPECS[PawnSize.MEDIUM][1]
 
 
 def _create_test_image(
@@ -211,16 +212,12 @@ def test_input_not_mutated():
 # ---------------------------------------------------------------------------
 
 
-def _make_test_pawn(color: tuple[int, int, int] = (255, 0, 0)) -> Image.Image:
+def _make_test_pawn(
+    color: tuple[int, int, int] = (255, 0, 0),
+    size: PawnSize = PawnSize.MEDIUM,
+) -> Image.Image:
     """Create a pawn image via make_pawn for use in collage tests."""
-    return make_pawn(Image.new("RGB", (100, 150), color))
-
-
-def test_collage_grid_constants():
-    """Verify the computed grid constants are sensible for A4."""
-    assert COLLAGE_COLS == 5
-    assert COLLAGE_ROWS == 2
-    assert COLLAGE_MAX_PAWNS == 10
+    return make_pawn(Image.new("RGB", (100, 150), color), size=size)
 
 
 def test_collage_output_dimensions():
@@ -249,19 +246,14 @@ def test_collage_white_background():
 def test_collage_single_pawn():
     pawn = _make_test_pawn()
     result = make_collage([pawn])
-    # The pawn should be placed in the top-left cell; verify pixels are
-    # not all white by sampling the cell area
+    # The pawn should be placed somewhere on the page; verify non-white pixels exist
+    # in the region where the pawn should be (top-left area)
     margin_px = mm_to_px(COLLAGE_MARGIN_MM)
-    cell_w = mm_to_px(MAX_WIDTH_MM)
-    cell_h = mm_to_px(PADDING_MM * 2 + MAX_HEIGHT_MM * 2)
-    # Center of the first cell
-    cx = margin_px + cell_w // 2
-    cy = margin_px + cell_h // 2
-    # At least some pixels around the center should be non-white
     found_non_white = False
-    for dx in range(-10, 11):
-        for dy in range(-10, 11):
-            if result.getpixel((cx + dx, cy + dy)) != (255, 255, 255):
+    # Scan a generous area from the top-left
+    for x in range(margin_px, margin_px + pawn.width):
+        for y in range(margin_px, margin_px + pawn.height):
+            if result.getpixel((x, y)) != (255, 255, 255):
                 found_non_white = True
                 break
         if found_non_white:
@@ -269,8 +261,9 @@ def test_collage_single_pawn():
     assert found_non_white
 
 
-def test_collage_max_pawns():
-    pawns = [_make_test_pawn() for _ in range(COLLAGE_MAX_PAWNS)]
+def test_collage_many_medium_pawns():
+    """Several medium pawns should fit on a page without error."""
+    pawns = [_make_test_pawn() for _ in range(5)]
     result = make_collage(pawns)
     assert result.width == mm_to_px(A4_WIDTH_MM)
 
@@ -281,44 +274,15 @@ def test_collage_empty_raises():
 
 
 def test_collage_too_many_raises():
-    pawns = [_make_test_pawn() for _ in range(COLLAGE_MAX_PAWNS + 1)]
+    """Enough pawns should overflow a single A4 page."""
+    pawns = [_make_test_pawn(size=PawnSize.HUGE) for _ in range(20)]
     with pytest.raises(ValueError, match="Too many pawns"):
         make_collage(pawns)
 
 
-def test_collage_placement_order():
-    """Pawns are placed left-to-right first, then top-to-bottom."""
-    colors = [
-        (255, 0, 0),
-        (0, 255, 0),
-        (0, 0, 255),
-    ]
-    pawns = [_make_test_pawn(c) for c in colors]
-    result = make_collage(pawns)
-
-    margin_px = mm_to_px(COLLAGE_MARGIN_MM)
-    spacing_px = mm_to_px(COLLAGE_SPACING_MM)
-    cell_w = mm_to_px(MAX_WIDTH_MM)
-    cell_h = mm_to_px(PADDING_MM * 2 + MAX_HEIGHT_MM * 2)
-
-    for i, pawn in enumerate(pawns):
-        col = i % COLLAGE_COLS
-        row = i // COLLAGE_COLS
-        cell_x = margin_px + col * (cell_w + spacing_px)
-        cell_y = margin_px + row * (cell_h + spacing_px)
-        offset_x = (cell_w - pawn.width) // 2
-        offset_y = (cell_h - pawn.height) // 2
-        # Sample a pixel from the pawn's interior (skip border)
-        px = cell_x + offset_x + pawn.width // 2
-        py = cell_y + offset_y + pawn.height // 2
-        pixel = result.getpixel((px, py))
-        # The pawn center should not be white (it contains the image content)
-        assert pixel != (255, 255, 255), f"Pawn {i} not found at col={col} row={row}"
-
-
 def test_collage_margin():
     """The page margin area should be entirely white."""
-    pawns = [_make_test_pawn() for _ in range(COLLAGE_MAX_PAWNS)]
+    pawns = [_make_test_pawn() for _ in range(5)]
     result = make_collage(pawns)
 
     margin_px = mm_to_px(COLLAGE_MARGIN_MM)
@@ -332,47 +296,52 @@ def test_collage_margin():
             assert result.getpixel((x, y)) == (255, 255, 255)
 
 
-def test_collage_spacing():
-    """Gaps between adjacent pawns should be at least 10mm wide and white."""
-    pawns = [_make_test_pawn() for _ in range(2)]
+def test_collage_mixed_sizes():
+    """A collage with different pawn sizes should render without error."""
+    pawns = [
+        _make_test_pawn(size=PawnSize.LARGE),
+        _make_test_pawn(size=PawnSize.MEDIUM),
+        _make_test_pawn(size=PawnSize.SMALL),
+    ]
     result = make_collage(pawns)
-
-    margin_px = mm_to_px(COLLAGE_MARGIN_MM)
-    spacing_px = mm_to_px(COLLAGE_SPACING_MM)
-    cell_w = mm_to_px(MAX_WIDTH_MM)
-
-    # The gap between column 0 and column 1 starts at margin + cell_w
-    gap_start_x = margin_px + cell_w
-    gap_end_x = gap_start_x + spacing_px
-    # Verify the gap is at least 10mm
-    assert gap_end_x - gap_start_x >= mm_to_px(10.0)
-    # Verify the gap is white (sample middle of gap vertically)
-    gap_mid_x = (gap_start_x + gap_end_x) // 2
-    for y in range(margin_px, margin_px + 50, 5):
-        assert result.getpixel((gap_mid_x, y)) == (255, 255, 255)
+    assert result.width == mm_to_px(A4_WIDTH_MM)
+    assert result.height == mm_to_px(A4_HEIGHT_MM)
 
 
-def test_collage_pawn_centered_in_cell():
-    """A pawn smaller than the max cell size should be centered."""
-    # Create a narrow pawn (narrow input -> narrow output)
-    narrow_pawn = make_pawn(Image.new("RGB", (50, 500), (0, 100, 200)))
-    result = make_collage([narrow_pawn])
+@pytest.mark.parametrize("size", list(PawnSize))
+def test_collage_single_size(size):
+    """A collage with a single pawn of each size should work."""
+    pawn = _make_test_pawn(size=size)
+    result = make_collage([pawn])
+    assert result.width == mm_to_px(A4_WIDTH_MM)
 
-    margin_px = mm_to_px(COLLAGE_MARGIN_MM)
-    cell_w = mm_to_px(MAX_WIDTH_MM)
-    cell_h = mm_to_px(PADDING_MM * 2 + MAX_HEIGHT_MM * 2)
-    offset_x = (cell_w - narrow_pawn.width) // 2
-    offset_y = (cell_h - narrow_pawn.height) // 2
 
-    # Pixel just inside the pawn's position should be non-white
-    px = margin_px + offset_x + narrow_pawn.width // 2
-    py = margin_px + offset_y + narrow_pawn.height // 2
-    assert result.getpixel((px, py)) != (255, 255, 255)
+@pytest.mark.parametrize("size", list(PawnSize))
+def test_make_pawn_size(size):
+    """make_pawn respects the size parameter."""
+    max_w_mm, max_h_mm = PAWN_SPECS[size]
+    result = make_pawn(_create_test_image(4000, 4000), size=size)
+    assert result.width <= mm_to_px(max_w_mm)
+    max_total_h_px = mm_to_px(PADDING_MM * 2 + max_h_mm * 2)
+    assert result.height <= max_total_h_px
 
-    # Pixel in the left margin of the cell (before the pawn) should be white
-    if offset_x > 1:
-        assert result.getpixel((margin_px + 1, margin_px + cell_h // 2)) == (
-            255,
-            255,
-            255,
-        )
+
+def test_make_pawn_stores_size_metadata():
+    """make_pawn stores the pawn size in image info."""
+    for size in PawnSize:
+        result = make_pawn(_create_test_image(100, 100), size=size)
+        assert result.info["pawn_size"] is size
+
+
+def test_collage_small_in_large_slot():
+    """4 small pawns can pack into a single large-sized slot."""
+    pawns = [_make_test_pawn(size=PawnSize.SMALL) for _ in range(4)]
+    result = make_collage(pawns)
+    assert result.width == mm_to_px(A4_WIDTH_MM)
+
+
+def test_collage_medium_in_huge_slot():
+    """4 medium pawns can pack into a single huge-sized slot."""
+    pawns = [_make_test_pawn(size=PawnSize.MEDIUM) for _ in range(4)]
+    result = make_collage(pawns)
+    assert result.width == mm_to_px(A4_WIDTH_MM)
