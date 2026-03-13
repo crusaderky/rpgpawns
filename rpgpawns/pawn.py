@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw
 
 DPI = 300
 MM_PER_INCH = 25.4
-PADDING_MM = 11.0
+MIN_PADDING_MM = 10.0
 BORDER_COLOR = (192, 192, 192)
 BORDER_WIDTH_PX = 1
 
@@ -39,16 +39,6 @@ PAWN_SPECS: dict[PawnSize, tuple[float, float]] = {
     PawnSize.HUGE: (75.0, 99.0),
 }
 """Maximum width and single-image height (mm) for each :class:`PawnSize`."""
-
-
-def _pawn_total_height_mm(size: PawnSize) -> float:
-    """Fixed total pawn height (mm) for a given size.
-
-    Every pawn of a given *size* has this exact height regardless of the
-    input image aspect ratio: min_padding + max_h + max_h + min_padding.
-    """
-    _, h = PAWN_SPECS[size]
-    return PADDING_MM * 2 + h * 2
 
 
 def _pawn_dims_mm(pawn: Image.Image) -> tuple[float, float]:
@@ -122,7 +112,7 @@ def make_pawn(
     # Padding is at least PADDING_MM, but increases when the scaled image
     # doesn't fill max_h so that all pawns of the same size share the same
     # total height: (min_padding + max_h) * 2.
-    min_padding_px = mm_to_px(PADDING_MM)
+    min_padding_px = mm_to_px(MIN_PADDING_MM)
     canvas_w = new_w
     canvas_h = (min_padding_px + max_h_px) * 2
     padding_px = (canvas_h - new_h * 2) // 2

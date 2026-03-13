@@ -10,7 +10,7 @@ from rpgpawns.pawn import (
     BORDER_WIDTH_PX,
     COLLAGE_MARGIN_MM,
     DPI,
-    PADDING_MM,
+    MIN_PADDING_MM,
     PAWN_SPECS,
     PawnSize,
     make_collage,
@@ -60,7 +60,7 @@ def _compute_scaled_dims(
 def _expected_total_height(size: PawnSize = PawnSize.MEDIUM) -> int:
     """Expected constant total pawn height in pixels for a given size."""
     max_h_mm = PAWN_SPECS[size][1]
-    return (mm_to_px(PADDING_MM) + mm_to_px(max_h_mm)) * 2
+    return (mm_to_px(MIN_PADDING_MM) + mm_to_px(max_h_mm)) * 2
 
 
 def test_mm_to_px_known_values():
@@ -121,7 +121,7 @@ def test_extra_padding_for_short_image():
     _, new_h = _compute_scaled_dims(4000, 200)
     canvas_h = _expected_total_height()
     actual_padding = (canvas_h - new_h * 2) // 2
-    min_padding = mm_to_px(PADDING_MM)
+    min_padding = mm_to_px(MIN_PADDING_MM)
     assert actual_padding > min_padding
     # Verify the extra padding area at top is white (inside border)
     for x in range(BORDER_WIDTH_PX, result.width - BORDER_WIDTH_PX, 10):
@@ -136,7 +136,7 @@ def test_minimum_padding_for_tall_image():
     _, new_h = _compute_scaled_dims(200, 4000)
     canvas_h = _expected_total_height()
     actual_padding = (canvas_h - new_h * 2) // 2
-    min_padding = mm_to_px(PADDING_MM)
+    min_padding = mm_to_px(MIN_PADDING_MM)
     assert actual_padding == min_padding
 
 
@@ -200,7 +200,7 @@ def test_mirror_is_vertically_flipped():
 
 def test_top_padding_is_white():
     result = make_pawn(_create_test_image(100, 100, color=(0, 0, 255)))
-    padding_px = mm_to_px(PADDING_MM)
+    padding_px = mm_to_px(MIN_PADDING_MM)
     # Sample pixels in the top padding (inside border)
     for x in range(BORDER_WIDTH_PX, result.width - BORDER_WIDTH_PX, 10):
         for y in range(BORDER_WIDTH_PX, padding_px, 10):
@@ -209,7 +209,7 @@ def test_top_padding_is_white():
 
 def test_bottom_padding_is_white():
     result = make_pawn(_create_test_image(100, 100, color=(0, 0, 255)))
-    padding_px = mm_to_px(PADDING_MM)
+    padding_px = mm_to_px(MIN_PADDING_MM)
     bottom_start = result.height - padding_px
     for x in range(BORDER_WIDTH_PX, result.width - BORDER_WIDTH_PX, 10):
         for y in range(bottom_start, result.height - BORDER_WIDTH_PX, 10):
