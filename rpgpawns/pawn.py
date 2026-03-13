@@ -42,7 +42,11 @@ PAWN_SPECS: dict[PawnSize, tuple[float, float]] = {
 
 
 def _pawn_total_height_mm(size: PawnSize) -> float:
-    """Total pawn height: padding + image + mirrored_image + padding."""
+    """Fixed total pawn height (mm) for a given size.
+
+    Every pawn of a given *size* has this exact height regardless of the
+    input image aspect ratio: min_padding + max_h + max_h + min_padding.
+    """
     _, h = PAWN_SPECS[size]
     return PADDING_MM * 2 + h * 2
 
@@ -72,7 +76,8 @@ def make_pawn(
     - The original image is scaled to fit within the dimensions specified by
       *size* (see :data:`PAWN_SPECS`), preserving aspect ratio
     - The image is duplicated along its top edge, mirrored vertically
-    - 4 mm of white padding is added at the top and bottom
+    - White padding (at least :data:`PADDING_MM`) is added at the top and
+      bottom so that all pawns of the same *size* have identical total height
     - A thin faint grey border is drawn around the entire image
 
     Parameters
@@ -113,10 +118,14 @@ def make_pawn(
     # Create vertically mirrored copy
     mirrored = scaled.transpose(Image.FLIP_TOP_BOTTOM)
 
-    # Calculate canvas dimensions
-    padding_px = mm_to_px(PADDING_MM)
+    # Calculate canvas dimensions.
+    # Padding is at least PADDING_MM, but increases when the scaled image
+    # doesn't fill max_h so that all pawns of the same size share the same
+    # total height: (min_padding + max_h) * 2.
+    min_padding_px = mm_to_px(PADDING_MM)
     canvas_w = new_w
-    canvas_h = padding_px + new_h + new_h + padding_px
+    canvas_h = (min_padding_px + max_h_px) * 2
+    padding_px = (canvas_h - new_h * 2) // 2
 
     # Create white canvas and paste images
     canvas = Image.new("RGB", (canvas_w, canvas_h), (255, 255, 255))

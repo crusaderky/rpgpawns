@@ -42,6 +42,27 @@ def _create_gradient_image(width: int, height: int) -> Image.Image:
     return img
 
 
+def _compute_scaled_dims(
+    input_w: int,
+    input_h: int,
+    size: PawnSize = PawnSize.MEDIUM,
+) -> tuple[int, int]:
+    """Compute the expected scaled image dimensions for a given input."""
+    max_w_mm, max_h_mm = PAWN_SPECS[size]
+    max_w_px = mm_to_px(max_w_mm)
+    max_h_px = mm_to_px(max_h_mm)
+    scale = min(max_w_px / input_w, max_h_px / input_h)
+    new_w = min(round(input_w * scale), max_w_px)
+    new_h = min(round(input_h * scale), max_h_px)
+    return new_w, new_h
+
+
+def _expected_total_height(size: PawnSize = PawnSize.MEDIUM) -> int:
+    """Expected constant total pawn height in pixels for a given size."""
+    max_h_mm = PAWN_SPECS[size][1]
+    return (mm_to_px(PADDING_MM) + mm_to_px(max_h_mm)) * 2
+
+
 def test_mm_to_px_known_values():
     # 25.4mm = 1 inch = 300 pixels at 300 DPI
     assert mm_to_px(25.4) == 300
@@ -75,17 +96,48 @@ def test_wide_image_constrained_by_width():
 def test_tall_image_constrained_by_height():
     """A very tall image should be constrained to 48mm per half."""
     result = make_pawn(_create_test_image(200, 4000))
-    max_total_h_px = mm_to_px(PADDING_MM * 2 + MAX_HEIGHT_MM * 2)
-    assert result.height <= max_total_h_px
+    assert result.height == _expected_total_height()
 
 
 def test_total_height_structure():
-    """Total height = padding + image_h + image_h + padding."""
+    """Total height is constant for a given size, regardless of input aspect ratio."""
     result = make_pawn(_create_test_image(200, 300))
-    padding_px = mm_to_px(PADDING_MM)
-    # Height minus both paddings must be even (two copies of same image)
-    image_zone = result.height - 2 * padding_px
-    assert image_zone % 2 == 0 or abs(image_zone % 2) <= 1
+    assert result.height == _expected_total_height()
+
+
+@pytest.mark.parametrize("size", list(PawnSize))
+def test_constant_total_height_across_aspect_ratios(size):
+    """All pawns of the same size have identical total height."""
+    expected_h = _expected_total_height(size)
+    for input_w, input_h in [(4000, 200), (200, 4000), (500, 500)]:
+        result = make_pawn(_create_test_image(input_w, input_h), size=size)
+        assert result.height == expected_h
+
+
+def test_extra_padding_for_short_image():
+    """A width-constrained image shorter than max_h gets extra padding."""
+    # Very wide image: fills width (28mm) but is much shorter than 48mm
+    result = make_pawn(_create_test_image(4000, 200))
+    _, new_h = _compute_scaled_dims(4000, 200)
+    canvas_h = _expected_total_height()
+    actual_padding = (canvas_h - new_h * 2) // 2
+    min_padding = mm_to_px(PADDING_MM)
+    assert actual_padding > min_padding
+    # Verify the extra padding area at top is white (inside border)
+    for x in range(BORDER_WIDTH_PX, result.width - BORDER_WIDTH_PX, 10):
+        for y in range(BORDER_WIDTH_PX, actual_padding, 10):
+            assert result.getpixel((x, y)) == (255, 255, 255)
+
+
+def test_minimum_padding_for_tall_image():
+    """A height-constrained image gets exactly the minimum padding."""
+    # Very tall image: fills height (48mm) but narrower than 28mm
+    result = make_pawn(_create_test_image(200, 4000))
+    _, new_h = _compute_scaled_dims(200, 4000)
+    canvas_h = _expected_total_height()
+    actual_padding = (canvas_h - new_h * 2) // 2
+    min_padding = mm_to_px(PADDING_MM)
+    assert actual_padding == min_padding
 
 
 def test_small_image_upscaled():
@@ -107,20 +159,22 @@ def test_small_image_upscaled():
 )
 def test_aspect_ratio_preserved(input_w, input_h):
     result = make_pawn(_create_test_image(input_w, input_h))
-    padding_px = mm_to_px(PADDING_MM)
-    img_h = (result.height - 2 * padding_px) / 2
-    img_w = result.width
+    expected_w, expected_h = _compute_scaled_dims(input_w, input_h)
+    assert result.width == expected_w
+    assert result.height == _expected_total_height()
     original_ratio = input_w / input_h
-    output_ratio = img_w / img_h
+    output_ratio = expected_w / expected_h
     assert abs(original_ratio - output_ratio) / original_ratio < 0.02
 
 
 def test_mirror_boundary_matches():
     """Bottom row of mirrored image should match top row of original."""
-    result = make_pawn(_create_gradient_image(50, 50))
-    padding_px = mm_to_px(PADDING_MM)
-    img_h = (result.height - 2 * padding_px) // 2
-    mid_y = padding_px + img_h
+    input_w, input_h = 50, 50
+    result = make_pawn(_create_gradient_image(input_w, input_h))
+    _, new_h = _compute_scaled_dims(input_w, input_h)
+    canvas_h = _expected_total_height()
+    padding_px = (canvas_h - new_h * 2) // 2
+    mid_y = padding_px + new_h
     # Bottom of mirrored region should equal top of original region
     for x in range(0, result.width, 5):
         mirrored_px = result.getpixel((x, mid_y - 1))
@@ -130,15 +184,17 @@ def test_mirror_boundary_matches():
 
 def test_mirror_is_vertically_flipped():
     """The mirrored half should be a vertical flip of the original half."""
-    result = make_pawn(_create_gradient_image(30, 60))
-    padding_px = mm_to_px(PADDING_MM)
-    img_h = (result.height - 2 * padding_px) // 2
+    input_w, input_h = 30, 60
+    result = make_pawn(_create_gradient_image(input_w, input_h))
+    _, new_h = _compute_scaled_dims(input_w, input_h)
+    canvas_h = _expected_total_height()
+    padding_px = (canvas_h - new_h * 2) // 2
     # For each row in the original, there should be a corresponding
     # mirrored row
-    for dy in range(0, img_h, max(1, img_h // 10)):
+    for dy in range(0, new_h, max(1, new_h // 10)):
         for x in range(0, result.width, max(1, result.width // 5)):
-            orig_y = padding_px + img_h + dy
-            mirror_y = padding_px + img_h - 1 - dy
+            orig_y = padding_px + new_h + dy
+            mirror_y = padding_px + new_h - 1 - dy
             assert result.getpixel((x, orig_y)) == result.getpixel((x, mirror_y))
 
 
@@ -319,11 +375,10 @@ def test_collage_single_size(size):
 @pytest.mark.parametrize("size", list(PawnSize))
 def test_make_pawn_size(size):
     """make_pawn respects the size parameter."""
-    max_w_mm, max_h_mm = PAWN_SPECS[size]
+    max_w_mm, _max_h_mm = PAWN_SPECS[size]
     result = make_pawn(_create_test_image(4000, 4000), size=size)
     assert result.width <= mm_to_px(max_w_mm)
-    max_total_h_px = mm_to_px(PADDING_MM * 2 + max_h_mm * 2)
-    assert result.height <= max_total_h_px
+    assert result.height == _expected_total_height(size)
 
 
 def test_make_pawn_stores_size_metadata():
