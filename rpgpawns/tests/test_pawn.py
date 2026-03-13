@@ -389,14 +389,14 @@ def test_make_pawn_stores_size_metadata():
 
 
 def test_collage_small_in_large_slot():
-    """4 small pawns can pack into a single large-sized slot."""
+    """4 small pawns fit in a single row."""
     pawns = [_make_test_pawn(size=PawnSize.SMALL) for _ in range(4)]
     result = make_collage(pawns)
     assert result.width == mm_to_px(A4_WIDTH_MM)
 
 
 def test_collage_medium_in_huge_slot():
-    """4 medium pawns can pack into a single huge-sized slot."""
+    """4 medium pawns fit in a single row."""
     pawns = [_make_test_pawn(size=PawnSize.MEDIUM) for _ in range(4)]
     result = make_collage(pawns)
     assert result.width == mm_to_px(A4_WIDTH_MM)

@@ -15,8 +15,8 @@ BORDER_WIDTH_PX = 1
 
 A4_WIDTH_MM = 210.0
 A4_HEIGHT_MM = 297.0
-COLLAGE_MARGIN_MM = 10.0
-COLLAGE_SPACING_MM = 10.0
+COLLAGE_MARGIN_MM = 5.0
+COLLAGE_SPACING_MM = 2.0
 
 
 class PawnSize(enum.Enum):
@@ -66,7 +66,7 @@ def make_pawn(
     - The original image is scaled to fit within the dimensions specified by
       *size* (see :data:`PAWN_SPECS`), preserving aspect ratio
     - The image is duplicated along its top edge, mirrored vertically
-    - White padding (at least :data:`PADDING_MM`) is added at the top and
+    - White padding (at least :data:`MIN_PADDING_MM`) is added at the top and
       bottom so that all pawns of the same *size* have identical total height
     - A thin faint grey border is drawn around the entire image
 
@@ -109,7 +109,7 @@ def make_pawn(
     mirrored = scaled.transpose(Image.FLIP_TOP_BOTTOM)
 
     # Calculate canvas dimensions.
-    # Padding is at least PADDING_MM, but increases when the scaled image
+    # Padding is at least MIN_PADDING_MM, but increases when the scaled image
     # doesn't fill max_h so that all pawns of the same size share the same
     # total height: (min_padding + max_h) * 2.
     min_padding_px = mm_to_px(MIN_PADDING_MM)
@@ -138,17 +138,22 @@ def make_pawn(
 
 
 # ---------------------------------------------------------------------------
-# Collage layout — column-based packing
+# Collage layout — row-based packing
 # ---------------------------------------------------------------------------
 
 
 def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
     """Arrange pawn images on an A4 page.
 
-    Pawns are packed into columns from left to right.  Tallest pawns are
-    placed first; shorter pawns are stacked below taller ones in the same
-    column when they fit.  Pawns already include built-in top/bottom
-    padding, so no extra vertical gap is added within a column.
+    Pawns are packed into rows from top to bottom.  Tallest pawns are
+    placed first; when the next pawn has a different height a new row is
+    started.  Within a row, pawns are placed left to right with
+    :data:`COLLAGE_SPACING_MM` between them.  Pawns already include
+    built-in top/bottom padding, so no extra vertical gap is added
+    between rows.
+
+    When a new row would exceed the available page height, a new vertical
+    band is started to the right of the widest row placed so far.
 
     Parameters
     ----------
@@ -171,54 +176,58 @@ def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
     avail_h_mm = A4_HEIGHT_MM - 2 * COLLAGE_MARGIN_MM
     sp = COLLAGE_SPACING_MM
 
-    # Sort pawns tallest-first for greedy column packing
+    # Sort pawns tallest-first for grouped row packing
     sorted_pawns = sorted(pawns, key=lambda p: (p.height, p.width), reverse=True)
 
-    # Each column: [col_width_mm, col_height_mm, [(pawn, y_offset_mm)]]
-    columns: list[list] = []  # mutable sub-lists for in-place updates
+    band_x = 0.0  # left edge of current band (relative to margin)
+    cursor_x = 0.0  # current x position (relative to margin)
+    cursor_y = 0.0  # current y position (relative to margin)
+    row_h = 0.0  # height of current row
+    max_right = 0.0  # rightmost pawn edge across all placements
+
+    placements: list[tuple[Image.Image, float, float]] = []
 
     for pawn in sorted_pawns:
         pw_mm, ph_mm = _pawn_dims_mm(pawn)
 
-        # Find the best existing column (least remaining space that still fits)
-        best_idx = -1
-        best_remaining = float("inf")
-        for i, col in enumerate(columns):
-            col_w, col_h = col[0], col[1]
-            if col_w >= pw_mm and col_h + ph_mm <= avail_h_mm:
-                remaining = avail_h_mm - col_h - ph_mm
-                if remaining < best_remaining:
-                    best_idx = i
-                    best_remaining = remaining
+        # If height changed from current row, start a new row
+        if row_h > 0 and abs(ph_mm - row_h) > 0.01:
+            cursor_y += row_h
+            cursor_x = band_x
+            row_h = 0.0
 
-        if best_idx >= 0:
-            col = columns[best_idx]
-            col[2].append((pawn, col[1]))
-            col[1] += ph_mm
-        else:
-            # Start a new column
-            total_w = sum(c[0] for c in columns)
-            if columns:
-                total_w += len(columns) * sp
-            if total_w + (sp if columns else 0) + pw_mm > avail_w_mm:
-                raise ValueError("Too many pawns to fit on a single A4 page")
-            columns.append([pw_mm, ph_mm, [(pawn, 0.0)]])
+        # If doesn't fit horizontally in current row, start a new row
+        if cursor_x > band_x and cursor_x + pw_mm > avail_w_mm:
+            cursor_y += row_h
+            cursor_x = band_x
+            row_h = 0.0
+
+        # If doesn't fit vertically, start a new band
+        if cursor_y + ph_mm > avail_h_mm:
+            band_x = max_right + sp
+            cursor_x = band_x
+            cursor_y = 0.0
+            row_h = 0.0
+
+        # Check if fits at all
+        if cursor_x + pw_mm > avail_w_mm or cursor_y + ph_mm > avail_h_mm:
+            raise ValueError("Too many pawns to fit on a single A4 page")
+
+        placements.append((pawn, cursor_x, cursor_y))
+        cursor_x += pw_mm + sp
+        row_h = max(row_h, ph_mm)
+        max_right = max(max_right, cursor_x - sp)
 
     # Render
     page_w = mm_to_px(A4_WIDTH_MM)
     page_h = mm_to_px(A4_HEIGHT_MM)
     margin_px = mm_to_px(COLLAGE_MARGIN_MM)
-    spacing_px = mm_to_px(COLLAGE_SPACING_MM)
     page = Image.new("RGB", (page_w, page_h), (255, 255, 255))
 
-    x_px = margin_px
-    for col_w_mm, _col_h_mm, entries in columns:
-        col_w_px = mm_to_px(col_w_mm)
-        for pawn, y_mm in entries:
-            offset_x = (col_w_px - pawn.width) // 2
-            y_px = margin_px + mm_to_px(y_mm)
-            page.paste(pawn, (x_px + offset_x, y_px))
-        x_px += col_w_px + spacing_px
+    for pawn, x_mm, y_mm in placements:
+        x_px = margin_px + mm_to_px(x_mm)
+        y_px = margin_px + mm_to_px(y_mm)
+        page.paste(pawn, (x_px, y_px))
 
     page.info["dpi"] = (DPI, DPI)
     return page
