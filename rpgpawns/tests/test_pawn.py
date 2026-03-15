@@ -7,12 +7,16 @@ from rpgpawns.pawn import (
     A4_HEIGHT_MM,
     A4_WIDTH_MM,
     BORDER_COLOR,
+    BORDER_WHITE_RATIO,
+    BORDER_WHITE_THRESHOLD,
     BORDER_WIDTH_PX,
     COLLAGE_MARGIN_MM,
     DPI,
     MIN_PADDING_MM,
     PAWN_SPECS,
+    BorderSide,
     PawnSize,
+    has_white_border,
     make_collage,
     make_pawn,
     mm_to_px,
@@ -132,7 +136,6 @@ def test_extra_padding_for_short_image():
 def test_minimum_padding_for_tall_image():
     """A height-constrained image gets exactly the minimum padding."""
     # Very tall image: fills height (48mm) but narrower than 28mm
-    result = make_pawn(_create_test_image(200, 4000))
     _, new_h = _compute_scaled_dims(200, 4000)
     canvas_h = _expected_total_height()
     actual_padding = (canvas_h - new_h * 2) // 2
@@ -263,6 +266,120 @@ def test_input_not_mutated():
 
 
 # ---------------------------------------------------------------------------
+# has_white_border tests
+# ---------------------------------------------------------------------------
+
+
+def test_has_white_border_all_white():
+    """All white image returns True for both sides."""
+    img = Image.new("RGB", (10, 100), (255, 255, 255))
+    assert has_white_border(img, BorderSide.LEFT) is True
+    assert has_white_border(img, BorderSide.RIGHT) is True
+
+
+def test_has_white_border_all_black():
+    """All black image returns False for both sides."""
+    img = Image.new("RGB", (10, 100), (0, 0, 0))
+    assert has_white_border(img, BorderSide.LEFT) is False
+    assert has_white_border(img, BorderSide.RIGHT) is False
+
+
+def test_has_white_border_checks_left_column():
+    """LEFT checks column at x=BORDER_WIDTH_PX, not at x=0."""
+    img = Image.new("RGB", (10, 100), (0, 0, 0))
+    # Make column x=BORDER_WIDTH_PX all white
+    for y in range(100):
+        img.putpixel((BORDER_WIDTH_PX, y), (255, 255, 255))
+    assert has_white_border(img, BorderSide.LEFT) is True
+    # RIGHT column is still black
+    assert has_white_border(img, BorderSide.RIGHT) is False
+
+
+def test_has_white_border_checks_right_column():
+    """RIGHT checks column at x=width-1-BORDER_WIDTH_PX."""
+    img = Image.new("RGB", (10, 100), (0, 0, 0))
+    x_right = img.width - 1 - BORDER_WIDTH_PX
+    for y in range(100):
+        img.putpixel((x_right, y), (255, 255, 255))
+    assert has_white_border(img, BorderSide.RIGHT) is True
+    # LEFT column is still black
+    assert has_white_border(img, BorderSide.LEFT) is False
+
+
+def test_has_white_border_ignores_outermost_column():
+    """The outermost column (x=0 / x=width-1) is ignored."""
+    img = Image.new("RGB", (10, 100), (0, 0, 0))
+    # Make x=0 all white — should NOT affect LEFT result
+    for y in range(100):
+        img.putpixel((0, y), (255, 255, 255))
+    assert has_white_border(img, BorderSide.LEFT) is False
+
+
+def test_has_white_border_threshold_exact():
+    """Pixels at exactly BORDER_WHITE_THRESHOLD are considered white."""
+    t = BORDER_WHITE_THRESHOLD
+    img = Image.new("RGB", (10, 100), (t, t, t))
+    assert has_white_border(img, BorderSide.LEFT) is True
+
+
+def test_has_white_border_below_threshold():
+    """Pixels one below BORDER_WHITE_THRESHOLD are not white."""
+    t = BORDER_WHITE_THRESHOLD - 1
+    img = Image.new("RGB", (10, 100), (t, t, t))
+    assert has_white_border(img, BorderSide.LEFT) is False
+
+
+def test_has_white_border_single_channel_below():
+    """If any single RGB channel is below threshold, the pixel is non-white."""
+    t = BORDER_WHITE_THRESHOLD
+    img = Image.new("RGB", (10, 100), (t, t, t - 1))
+    assert has_white_border(img, BorderSide.LEFT) is False
+
+
+def test_has_white_border_ratio_boundary():
+    """Exactly BORDER_WHITE_RATIO of white pixels returns True."""
+    h = 100
+    n_white = int(h * BORDER_WHITE_RATIO)  # 90
+    img = Image.new("RGB", (10, h), (0, 0, 0))
+    for y in range(n_white):
+        img.putpixel((BORDER_WIDTH_PX, y), (255, 255, 255))
+    assert has_white_border(img, BorderSide.LEFT) is True
+
+
+def test_has_white_border_ratio_just_below():
+    """One fewer white pixel than the ratio requires returns False."""
+    h = 100
+    n_white = int(h * BORDER_WHITE_RATIO) - 1  # 89
+    img = Image.new("RGB", (10, h), (0, 0, 0))
+    for y in range(n_white):
+        img.putpixel((BORDER_WIDTH_PX, y), (255, 255, 255))
+    assert has_white_border(img, BorderSide.LEFT) is False
+
+
+def test_has_white_border_pawn_white_source():
+    """A pawn made from a white image has white borders on both sides."""
+    pawn = make_pawn(Image.new("RGB", (100, 150), (255, 255, 255)))
+    assert has_white_border(pawn, BorderSide.LEFT) is True
+    assert has_white_border(pawn, BorderSide.RIGHT) is True
+
+
+def test_has_white_border_pawn_colored_source():
+    """A pawn from a tall colored image has non-white borders."""
+    # 100x150 red image fills enough height that the red edge pixels
+    # exceed the (1 - BORDER_WHITE_RATIO) tolerance.
+    pawn = make_pawn(Image.new("RGB", (100, 150), (255, 0, 0)))
+    assert has_white_border(pawn, BorderSide.LEFT) is False
+    assert has_white_border(pawn, BorderSide.RIGHT) is False
+
+
+@pytest.mark.parametrize("side", list(BorderSide))
+def test_has_white_border_both_enum_values(side):
+    """has_white_border accepts both BorderSide enum members."""
+    img = Image.new("RGB", (10, 50), (255, 255, 255))
+    assert has_white_border(img, side) is True
+
+
+# ---------------------------------------------------------------------------
 # make_collage tests
 # ---------------------------------------------------------------------------
 
@@ -279,6 +396,24 @@ def test_collage_output_dimensions():
     result = make_collage([_make_test_pawn()])
     assert result.width == mm_to_px(A4_WIDTH_MM)
     assert result.height == mm_to_px(A4_HEIGHT_MM)
+
+
+def test_collage_white_border_overlap():
+    """Adjacent white-bordered pawns overlap by BORDER_WIDTH_PX instead of spacing."""
+    pawn = make_pawn(Image.new("RGB", (100, 150), (255, 255, 255)))
+    result = make_collage([pawn, pawn])
+
+    margin_px = mm_to_px(COLLAGE_MARGIN_MM)
+    # With overlap: pawn2 starts pawn.width - BORDER_WIDTH_PX pixels from
+    # pawn1's start (the borders merge into a single grey line).
+    pawn2_x = margin_px + pawn.width - BORDER_WIDTH_PX
+    pawn2_right = pawn2_x + pawn.width - 1
+    mid_y = margin_px + pawn.height // 2
+
+    # Pawn2's right border at the expected overlap position
+    assert result.getpixel((pawn2_right, mid_y)) == BORDER_COLOR
+    # One pixel past pawn2 is white background
+    assert result.getpixel((pawn2_right + 1, mid_y)) == (255, 255, 255)
 
 
 def test_collage_output_dpi():
