@@ -171,3 +171,9 @@ def test_main_multiple_images(tmp_path):
 def test_main_no_args_exits():
     with pytest.raises(SystemExit, match="2"):
         main([])
+
+
+def test_main_modifier_without_image_exits():
+    """A modifier with no preceding image causes a parser error exit."""
+    with pytest.raises(SystemExit, match="2"):
+        main(["small"])

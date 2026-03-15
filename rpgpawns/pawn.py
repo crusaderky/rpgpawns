@@ -12,11 +12,16 @@ MM_PER_INCH = 25.4
 MIN_PADDING_MM = 10.0
 BORDER_COLOR = (192, 192, 192)
 BORDER_WIDTH_PX = 1
+BORDER_WIDTH_MM = BORDER_WIDTH_PX * MM_PER_INCH / DPI
+BORDER_WHITE_THRESHOLD = 240
+BORDER_WHITE_RATIO = 0.9
 
 A4_WIDTH_MM = 210.0
 A4_HEIGHT_MM = 297.0
 COLLAGE_MARGIN_MM = 5.0
 COLLAGE_SPACING_MM = 2.0
+AVAIL_WIDTH_MM = A4_WIDTH_MM - 2 * COLLAGE_MARGIN_MM
+AVAIL_HEIGHT_MM = A4_HEIGHT_MM - 2 * COLLAGE_MARGIN_MM
 
 
 class PawnSize(enum.Enum):
@@ -30,6 +35,13 @@ class PawnSize(enum.Enum):
     MEDIUM = "medium"
     LARGE = "large"
     HUGE = "huge"
+
+
+class BorderSide(enum.Enum):
+    """Side of the pawn image to test for a white border."""
+
+    LEFT = "left"
+    RIGHT = "right"
 
 
 PAWN_SPECS: dict[PawnSize, tuple[float, float]] = {
@@ -52,6 +64,48 @@ def _pawn_dims_mm(pawn: Image.Image) -> tuple[float, float]:
 def mm_to_px(mm: float, dpi: int = DPI) -> int:
     """Convert millimeters to pixels at the given DPI."""
     return round(mm * dpi / MM_PER_INCH)
+
+
+def has_white_border(image: Image.Image, side: BorderSide) -> bool:
+    """Test whether the left or right edge of a pawn image is almost white.
+
+    Checks the column of pixels just inside the grey border drawn by
+    :func:`make_pawn` (i.e. at *x* = :data:`BORDER_WIDTH_PX` for the left
+    side, or *x* = ``width - 1 - BORDER_WIDTH_PX`` for the right side).
+
+    A pixel is considered *almost white* when every RGB channel is at least
+    :data:`BORDER_WHITE_THRESHOLD`.  If the fraction of almost-white pixels
+    in the column is at least :data:`BORDER_WHITE_RATIO`, the border is
+    considered white and the function returns ``True``.
+
+    Parameters
+    ----------
+    image:
+        A pawn image as returned by :func:`make_pawn`.
+    side:
+        Which edge to test.
+
+    Returns
+    -------
+    ``True`` if the edge column is almost entirely white.
+    """
+    if side is BorderSide.LEFT:
+        x = BORDER_WIDTH_PX
+    else:
+        x = image.width - 1 - BORDER_WIDTH_PX
+
+    total = image.height
+    white_count = 0
+    for y in range(total):
+        r, g, b = image.getpixel((x, y))[:3]
+        if (
+            r >= BORDER_WHITE_THRESHOLD
+            and g >= BORDER_WHITE_THRESHOLD
+            and b >= BORDER_WHITE_THRESHOLD
+        ):
+            white_count += 1
+
+    return white_count / total >= BORDER_WHITE_RATIO
 
 
 def make_pawn(
@@ -172,10 +226,6 @@ def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
     if not pawns:
         raise ValueError("pawns must not be empty")
 
-    avail_w_mm = A4_WIDTH_MM - 2 * COLLAGE_MARGIN_MM
-    avail_h_mm = A4_HEIGHT_MM - 2 * COLLAGE_MARGIN_MM
-    sp = COLLAGE_SPACING_MM
-
     # Sort pawns tallest-first for grouped row packing
     sorted_pawns = sorted(pawns, key=lambda p: (p.height, p.width), reverse=True)
 
@@ -184,6 +234,7 @@ def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
     cursor_y = 0.0  # current y position (relative to margin)
     row_h = 0.0  # height of current row
     max_right = 0.0  # rightmost pawn edge across all placements
+    prev_in_row: Image.Image | None = None  # last placed pawn in current row
 
     placements: list[tuple[Image.Image, float, float]] = []
 
@@ -195,28 +246,43 @@ def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
             cursor_y += row_h
             cursor_x = band_x
             row_h = 0.0
+            prev_in_row = None
+
+        # Add gap from previous pawn in the row: overlap borders when
+        # either neighbour has an almost-white edge, otherwise use the
+        # standard spacing.
+        if prev_in_row is not None:
+            if has_white_border(prev_in_row, BorderSide.RIGHT) or has_white_border(
+                pawn, BorderSide.LEFT
+            ):
+                cursor_x -= BORDER_WIDTH_MM
+            else:
+                cursor_x += COLLAGE_SPACING_MM
 
         # If doesn't fit horizontally in current row, start a new row
-        if cursor_x > band_x and cursor_x + pw_mm > avail_w_mm:
-            cursor_y += row_h
+        if prev_in_row is not None and cursor_x + pw_mm > AVAIL_WIDTH_MM:
+            cursor_y += row_h - BORDER_WIDTH_MM
             cursor_x = band_x
             row_h = 0.0
+            prev_in_row = None
 
         # If doesn't fit vertically, start a new band
-        if cursor_y + ph_mm > avail_h_mm:
-            band_x = max_right + sp
+        if cursor_y + ph_mm > AVAIL_HEIGHT_MM:
+            band_x = max_right + COLLAGE_SPACING_MM
             cursor_x = band_x
             cursor_y = 0.0
             row_h = 0.0
+            prev_in_row = None
 
         # Check if fits at all
-        if cursor_x + pw_mm > avail_w_mm or cursor_y + ph_mm > avail_h_mm:
+        if cursor_x + pw_mm > AVAIL_WIDTH_MM or cursor_y + ph_mm > AVAIL_HEIGHT_MM:
             raise ValueError("Too many pawns to fit on a single A4 page")
 
         placements.append((pawn, cursor_x, cursor_y))
-        cursor_x += pw_mm + sp
+        cursor_x += pw_mm
         row_h = max(row_h, ph_mm)
-        max_right = max(max_right, cursor_x - sp)
+        max_right = max(max_right, cursor_x)
+        prev_in_row = pawn
 
     # Render
     page_w = mm_to_px(A4_WIDTH_MM)
