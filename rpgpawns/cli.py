@@ -112,8 +112,24 @@ def main(argv: list[str] | None = None) -> None:
         for _ in range(count):
             pawns.append(pawn)
 
-    collage = make_collage(pawns)
-    collage.save(ns.output, dpi=(DPI, DPI))
+    pages = make_collage(pawns)
+
+    output_lower = ns.output.lower()
+    if len(pages) > 1 and not output_lower.endswith(".pdf"):
+        parser.error(
+            f"Multiple pages generated but output format does not support "
+            f"multi-page files: {ns.output}"
+        )
+
+    if output_lower.endswith(".pdf"):
+        pages[0].save(
+            ns.output,
+            dpi=(DPI, DPI),
+            save_all=True,
+            append_images=pages[1:],
+        )
+    else:
+        pages[0].save(ns.output, dpi=(DPI, DPI))
 
 
 if __name__ == "__main__":

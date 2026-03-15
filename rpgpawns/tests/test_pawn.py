@@ -393,15 +393,17 @@ def _make_test_pawn(
 
 
 def test_collage_output_dimensions():
-    result = make_collage([_make_test_pawn()])
-    assert result.width == mm_to_px(A4_WIDTH_MM)
-    assert result.height == mm_to_px(A4_HEIGHT_MM)
+    pages = make_collage([_make_test_pawn()])
+    assert len(pages) == 1
+    assert pages[0].width == mm_to_px(A4_WIDTH_MM)
+    assert pages[0].height == mm_to_px(A4_HEIGHT_MM)
 
 
 def test_collage_white_border_overlap():
     """Adjacent white-bordered pawns overlap by BORDER_WIDTH_PX instead of spacing."""
     pawn = make_pawn(Image.new("RGB", (100, 150), (255, 255, 255)))
-    result = make_collage([pawn, pawn])
+    pages = make_collage([pawn, pawn])
+    result = pages[0]
 
     margin_px = mm_to_px(COLLAGE_MARGIN_MM)
     # With overlap: pawn2 starts pawn.width - BORDER_WIDTH_PX pixels from
@@ -417,17 +419,18 @@ def test_collage_white_border_overlap():
 
 
 def test_collage_output_dpi():
-    result = make_collage([_make_test_pawn()])
-    assert result.info.get("dpi") == (DPI, DPI)
+    pages = make_collage([_make_test_pawn()])
+    assert pages[0].info.get("dpi") == (DPI, DPI)
 
 
 def test_collage_output_mode():
-    result = make_collage([_make_test_pawn()])
-    assert result.mode == "RGB"
+    pages = make_collage([_make_test_pawn()])
+    assert pages[0].mode == "RGB"
 
 
 def test_collage_white_background():
-    result = make_collage([_make_test_pawn()])
+    pages = make_collage([_make_test_pawn()])
+    result = pages[0]
     # Check a corner far from any pawn placement
     assert result.getpixel((result.width - 1, result.height - 1)) == (255, 255, 255)
     assert result.getpixel((0, 0)) == (255, 255, 255)
@@ -435,7 +438,8 @@ def test_collage_white_background():
 
 def test_collage_single_pawn():
     pawn = _make_test_pawn()
-    result = make_collage([pawn])
+    pages = make_collage([pawn])
+    result = pages[0]
     # The pawn should be placed somewhere on the page; verify non-white pixels exist
     # in the region where the pawn should be (top-left area)
     margin_px = mm_to_px(COLLAGE_MARGIN_MM)
@@ -454,8 +458,8 @@ def test_collage_single_pawn():
 def test_collage_many_medium_pawns():
     """Several medium pawns should fit on a page without error."""
     pawns = [_make_test_pawn() for _ in range(5)]
-    result = make_collage(pawns)
-    assert result.width == mm_to_px(A4_WIDTH_MM)
+    pages = make_collage(pawns)
+    assert pages[0].width == mm_to_px(A4_WIDTH_MM)
 
 
 def test_collage_empty_raises():
@@ -463,17 +467,22 @@ def test_collage_empty_raises():
         make_collage([])
 
 
-def test_collage_too_many_raises():
-    """Enough pawns should overflow a single A4 page."""
+def test_collage_many_pawns_multi_page():
+    """Enough pawns should produce multiple pages instead of raising."""
     pawns = [_make_test_pawn(size=PawnSize.HUGE) for _ in range(20)]
-    with pytest.raises(ValueError, match="Too many pawns"):
-        make_collage(pawns)
+    pages = make_collage(pawns)
+    assert len(pages) > 1
+    for page in pages:
+        assert page.width == mm_to_px(A4_WIDTH_MM)
+        assert page.height == mm_to_px(A4_HEIGHT_MM)
+        assert page.info.get("dpi") == (DPI, DPI)
 
 
 def test_collage_margin():
     """The page margin area should be entirely white."""
     pawns = [_make_test_pawn() for _ in range(5)]
-    result = make_collage(pawns)
+    pages = make_collage(pawns)
+    result = pages[0]
 
     margin_px = mm_to_px(COLLAGE_MARGIN_MM)
     # Top margin row
@@ -494,17 +503,17 @@ def test_collage_mixed_sizes():
         _make_test_pawn(size=PawnSize.MEDIUM),
         _make_test_pawn(size=PawnSize.SMALL),
     ]
-    result = make_collage(pawns)
-    assert result.width == mm_to_px(A4_WIDTH_MM)
-    assert result.height == mm_to_px(A4_HEIGHT_MM)
+    pages = make_collage(pawns)
+    assert pages[0].width == mm_to_px(A4_WIDTH_MM)
+    assert pages[0].height == mm_to_px(A4_HEIGHT_MM)
 
 
 @pytest.mark.parametrize("size", list(PawnSize))
 def test_collage_single_size(size):
     """A collage with a single pawn of each size should work."""
     pawn = _make_test_pawn(size=size)
-    result = make_collage([pawn])
-    assert result.width == mm_to_px(A4_WIDTH_MM)
+    pages = make_collage([pawn])
+    assert pages[0].width == mm_to_px(A4_WIDTH_MM)
 
 
 @pytest.mark.parametrize("size", list(PawnSize))
@@ -526,12 +535,48 @@ def test_make_pawn_stores_size_metadata():
 def test_collage_small_in_large_slot():
     """4 small pawns fit in a single row."""
     pawns = [_make_test_pawn(size=PawnSize.SMALL) for _ in range(4)]
-    result = make_collage(pawns)
-    assert result.width == mm_to_px(A4_WIDTH_MM)
+    pages = make_collage(pawns)
+    assert pages[0].width == mm_to_px(A4_WIDTH_MM)
 
 
 def test_collage_medium_in_huge_slot():
     """4 medium pawns fit in a single row."""
     pawns = [_make_test_pawn(size=PawnSize.MEDIUM) for _ in range(4)]
-    result = make_collage(pawns)
-    assert result.width == mm_to_px(A4_WIDTH_MM)
+    pages = make_collage(pawns)
+    assert pages[0].width == mm_to_px(A4_WIDTH_MM)
+
+
+def test_collage_returns_list():
+    """make_collage always returns a list, even for a single page."""
+    pages = make_collage([_make_test_pawn()])
+    assert isinstance(pages, list)
+    assert len(pages) == 1
+
+
+def test_collage_multi_page_all_pages_valid():
+    """Each page in a multi-page collage is a valid A4 RGB image."""
+    pawns = [_make_test_pawn(size=PawnSize.HUGE) for _ in range(20)]
+    pages = make_collage(pawns)
+    for page in pages:
+        assert isinstance(page, Image.Image)
+        assert page.mode == "RGB"
+        assert page.width == mm_to_px(A4_WIDTH_MM)
+        assert page.height == mm_to_px(A4_HEIGHT_MM)
+        assert page.info.get("dpi") == (DPI, DPI)
+
+
+def test_collage_multi_page_has_content():
+    """Every page in a multi-page collage has non-white pixels (pawns)."""
+    pawns = [_make_test_pawn(size=PawnSize.HUGE) for _ in range(20)]
+    pages = make_collage(pawns)
+    assert len(pages) > 1
+    for page in pages:
+        found_non_white = False
+        for x in range(0, page.width, 50):
+            for y in range(0, page.height, 50):
+                if page.getpixel((x, y)) != (255, 255, 255):
+                    found_non_white = True
+                    break
+            if found_non_white:
+                break
+        assert found_non_white

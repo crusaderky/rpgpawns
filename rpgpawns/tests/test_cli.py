@@ -177,3 +177,24 @@ def test_main_modifier_without_image_exits():
     """A modifier with no preceding image causes a parser error exit."""
     with pytest.raises(SystemExit, match="2"):
         main(["small"])
+
+
+def test_main_multi_page_pdf(tmp_path):
+    """Many pawns produce a multi-page PDF without error."""
+    img_path = tmp_path / "input.png"
+    _create_test_image(img_path)
+    output_path = tmp_path / "output.pdf"
+    # huge:20 should overflow a single page
+    main([str(img_path), "huge:20", "-o", str(output_path)])
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_main_multi_page_png_exits(tmp_path):
+    """Multi-page output to a non-PDF format causes a parser error exit."""
+    img_path = tmp_path / "input.png"
+    _create_test_image(img_path)
+    output_path = tmp_path / "output.png"
+    with pytest.raises(SystemExit, match="2"):
+        main([str(img_path), "huge:20", "-o", str(output_path)])

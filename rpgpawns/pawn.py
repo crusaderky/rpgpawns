@@ -196,8 +196,26 @@ def make_pawn(
 # ---------------------------------------------------------------------------
 
 
-def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
-    """Arrange pawn images on an A4 page.
+def _render_page(
+    placements: Sequence[tuple[Image.Image, float, float]],
+) -> Image.Image:
+    """Render a list of (pawn, x_mm, y_mm) placements onto a blank A4 page."""
+    page_w = mm_to_px(A4_WIDTH_MM)
+    page_h = mm_to_px(A4_HEIGHT_MM)
+    margin_px = mm_to_px(COLLAGE_MARGIN_MM)
+    page = Image.new("RGB", (page_w, page_h), (255, 255, 255))
+
+    for pawn, x_mm, y_mm in placements:
+        x_px = margin_px + mm_to_px(x_mm)
+        y_px = margin_px + mm_to_px(y_mm)
+        page.paste(pawn, (x_px, y_px))
+
+    page.info["dpi"] = (DPI, DPI)
+    return page
+
+
+def make_collage(pawns: Sequence[Image.Image]) -> list[Image.Image]:
+    """Arrange pawn images on A4 pages.
 
     Pawns are packed into rows from top to bottom.  Tallest pawns are
     placed first; when the next pawn has a different height a new row is
@@ -209,6 +227,9 @@ def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
     When a new row would exceed the available page height, a new vertical
     band is started to the right of the widest row placed so far.
 
+    If the pawns do not fit on a single page, additional pages are
+    created automatically.
+
     Parameters
     ----------
     pawns:
@@ -216,12 +237,13 @@ def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
 
     Returns
     -------
-    PIL Image in RGB mode at 300 DPI, sized to A4 (210 mm x 297 mm).
+    List of PIL Images in RGB mode at 300 DPI, each sized to A4
+    (210 mm x 297 mm).
 
     Raises
     ------
     ValueError
-        If *pawns* is empty or too many pawns to fit on a single page.
+        If *pawns* is empty.
     """
     if not pawns:
         raise ValueError("pawns must not be empty")
@@ -237,6 +259,7 @@ def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
     prev_in_row: Image.Image | None = None  # last placed pawn in current row
 
     placements: list[tuple[Image.Image, float, float]] = []
+    pages: list[Image.Image] = []
 
     for pawn in sorted_pawns:
         pw_mm, ph_mm = _pawn_dims_mm(pawn)
@@ -274,9 +297,16 @@ def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
             row_h = 0.0
             prev_in_row = None
 
-        # Check if fits at all
+        # If doesn't fit on current page, finalize it and start a new page
         if cursor_x + pw_mm > AVAIL_WIDTH_MM or cursor_y + ph_mm > AVAIL_HEIGHT_MM:
-            raise ValueError("Too many pawns to fit on a single A4 page")
+            pages.append(_render_page(placements))
+            placements = []
+            band_x = 0.0
+            cursor_x = 0.0
+            cursor_y = 0.0
+            row_h = 0.0
+            max_right = 0.0
+            prev_in_row = None
 
         placements.append((pawn, cursor_x, cursor_y))
         cursor_x += pw_mm
@@ -284,16 +314,6 @@ def make_collage(pawns: Sequence[Image.Image]) -> Image.Image:
         max_right = max(max_right, cursor_x)
         prev_in_row = pawn
 
-    # Render
-    page_w = mm_to_px(A4_WIDTH_MM)
-    page_h = mm_to_px(A4_HEIGHT_MM)
-    margin_px = mm_to_px(COLLAGE_MARGIN_MM)
-    page = Image.new("RGB", (page_w, page_h), (255, 255, 255))
-
-    for pawn, x_mm, y_mm in placements:
-        x_px = margin_px + mm_to_px(x_mm)
-        y_px = margin_px + mm_to_px(y_mm)
-        page.paste(pawn, (x_px, y_px))
-
-    page.info["dpi"] = (DPI, DPI)
-    return page
+    # Render final page
+    pages.append(_render_page(placements))
+    return pages
