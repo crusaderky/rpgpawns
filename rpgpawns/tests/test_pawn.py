@@ -580,3 +580,65 @@ def test_collage_multi_page_has_content():
             if found_non_white:
                 break
         assert found_non_white
+
+
+def test_collage_custom_margin():
+    """make_collage respects custom margin parameter."""
+    pawns = [_make_test_pawn() for _ in range(5)]
+    margin_mm = 10.0
+    pages = make_collage(pawns, margin_mm=margin_mm)
+    result = pages[0]
+
+    margin_px = mm_to_px(margin_mm)
+    # Top margin row should be white
+    for x in range(0, result.width, 20):
+        for y in range(margin_px):
+            assert result.getpixel((x, y)) == (255, 255, 255)
+    # Left margin column should be white
+    for y in range(0, result.height, 20):
+        for x in range(margin_px):
+            assert result.getpixel((x, y)) == (255, 255, 255)
+
+
+def test_collage_default_margin():
+    """make_collage uses COLLAGE_MARGIN_MM as default."""
+    pawns = [_make_test_pawn() for _ in range(5)]
+    pages_default = make_collage(pawns)
+    pages_explicit = make_collage(pawns, margin_mm=COLLAGE_MARGIN_MM)
+    # Both should produce the same result
+    assert pages_default[0].size == pages_explicit[0].size
+
+
+def test_collage_zero_margin():
+    """make_collage works with zero margin."""
+    pawns = [_make_test_pawn() for _ in range(2)]
+    pages = make_collage(pawns, margin_mm=0.0)
+    result = pages[0]
+
+    assert result.width == mm_to_px(A4_WIDTH_MM)
+    assert result.height == mm_to_px(A4_HEIGHT_MM)
+    # With zero margin, pawns should be placed at the very edge
+    # Check that there's non-white content near the edges
+    found_non_white_near_edge = False
+    for x in range(20):
+        for y in range(50):
+            if result.getpixel((x, y)) != (255, 255, 255):
+                found_non_white_near_edge = True
+                break
+        if found_non_white_near_edge:
+            break
+    assert found_non_white_near_edge
+
+
+def test_collage_large_margin():
+    """make_collage works with large margin values."""
+    pawns = [_make_test_pawn(size=PawnSize.SMALL)]
+    margin_mm = 50.0
+    pages = make_collage(pawns, margin_mm=margin_mm)
+    result = pages[0]
+
+    margin_px = mm_to_px(margin_mm)
+    # Verify the larger margin area is white
+    for x in range(0, result.width, 50):
+        for y in range(margin_px):
+            assert result.getpixel((x, y)) == (255, 255, 255)

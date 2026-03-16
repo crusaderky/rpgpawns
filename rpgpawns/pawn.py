@@ -120,8 +120,8 @@ def make_pawn(
     - The original image is scaled to fit within the dimensions specified by
       *size* (see :data:`~rpgpawns.pawn.PAWN_SPECS`), preserving aspect ratio
     - The image is duplicated along its top edge, mirrored vertically
-    - White padding (at least :data:`~rpgpawns.pawn.MIN_PADDING_MM`) is added at the top and
-      bottom so that all pawns of the same *size* have identical total height
+    - White padding (at least :data:`~rpgpawns.pawn.MIN_PADDING_MM`) is added at the top
+      and bottom so that all pawns of the same *size* have identical total height
     - A thin faint grey border is drawn around the entire image
 
     Parameters
@@ -198,11 +198,12 @@ def make_pawn(
 
 def _render_page(
     placements: Sequence[tuple[Image.Image, float, float]],
+    margin_mm: float = COLLAGE_MARGIN_MM,
 ) -> Image.Image:
     """Render a list of (pawn, x_mm, y_mm) placements onto a blank A4 page."""
     page_w = mm_to_px(A4_WIDTH_MM)
     page_h = mm_to_px(A4_HEIGHT_MM)
-    margin_px = mm_to_px(COLLAGE_MARGIN_MM)
+    margin_px = mm_to_px(margin_mm)
     page = Image.new("RGB", (page_w, page_h), (255, 255, 255))
 
     for pawn, x_mm, y_mm in placements:
@@ -214,7 +215,9 @@ def _render_page(
     return page
 
 
-def make_collage(pawns: Sequence[Image.Image]) -> list[Image.Image]:
+def make_collage(
+    pawns: Sequence[Image.Image], margin_mm: float = COLLAGE_MARGIN_MM
+) -> list[Image.Image]:
     """Arrange pawn images on A4 pages.
 
     Pawns are packed into rows from top to bottom.  Tallest pawns are
@@ -234,6 +237,9 @@ def make_collage(pawns: Sequence[Image.Image]) -> list[Image.Image]:
     ----------
     pawns:
         Pawn images as returned by :func:`make_pawn`.  Must not be empty.
+    margin_mm:
+        Page margin in millimeters.  Defaults to
+        :data:`~rpgpawns.pawn.COLLAGE_MARGIN_MM`.
 
     Returns
     -------
@@ -247,6 +253,10 @@ def make_collage(pawns: Sequence[Image.Image]) -> list[Image.Image]:
     """
     if not pawns:
         raise ValueError("pawns must not be empty")
+
+    # Calculate available dimensions based on margin
+    avail_width_mm = A4_WIDTH_MM - 2 * margin_mm
+    avail_height_mm = A4_HEIGHT_MM - 2 * margin_mm
 
     # Sort pawns tallest-first for grouped row packing
     sorted_pawns = sorted(pawns, key=lambda p: (p.height, p.width), reverse=True)
@@ -283,14 +293,14 @@ def make_collage(pawns: Sequence[Image.Image]) -> list[Image.Image]:
                 cursor_x += COLLAGE_SPACING_MM
 
         # If doesn't fit horizontally in current row, start a new row
-        if prev_in_row is not None and cursor_x + pw_mm > AVAIL_WIDTH_MM:
+        if prev_in_row is not None and cursor_x + pw_mm > avail_width_mm:
             cursor_y += row_h - BORDER_WIDTH_MM
             cursor_x = band_x
             row_h = 0.0
             prev_in_row = None
 
         # If doesn't fit vertically, start a new band
-        if cursor_y + ph_mm > AVAIL_HEIGHT_MM:
+        if cursor_y + ph_mm > avail_height_mm:
             band_x = max_right + COLLAGE_SPACING_MM
             cursor_x = band_x
             cursor_y = 0.0
@@ -298,8 +308,8 @@ def make_collage(pawns: Sequence[Image.Image]) -> list[Image.Image]:
             prev_in_row = None
 
         # If doesn't fit on current page, finalize it and start a new page
-        if cursor_x + pw_mm > AVAIL_WIDTH_MM or cursor_y + ph_mm > AVAIL_HEIGHT_MM:
-            pages.append(_render_page(placements))
+        if cursor_x + pw_mm > avail_width_mm or cursor_y + ph_mm > avail_height_mm:
+            pages.append(_render_page(placements, margin_mm))
             placements = []
             band_x = 0.0
             cursor_x = 0.0
@@ -315,5 +325,5 @@ def make_collage(pawns: Sequence[Image.Image]) -> list[Image.Image]:
         prev_in_row = pawn
 
     # Render final page
-    pages.append(_render_page(placements))
+    pages.append(_render_page(placements, margin_mm))
     return pages

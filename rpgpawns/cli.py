@@ -6,7 +6,7 @@ import argparse
 
 from PIL import Image
 
-from rpgpawns.pawn import DPI, PawnSize, make_collage, make_pawn
+from rpgpawns.pawn import COLLAGE_MARGIN_MM, DPI, PawnSize, make_collage, make_pawn
 
 _SIZE_NAMES = {s.value for s in PawnSize}
 
@@ -109,6 +109,13 @@ def build_parser() -> argparse.ArgumentParser:
         default="output.pdf",
         help="Output file path (default: output.pdf).",
     )
+    parser.add_argument(
+        "-m",
+        "--margin",
+        type=float,
+        default=COLLAGE_MARGIN_MM,
+        help=f"Page margin in millimeters (default: {COLLAGE_MARGIN_MM}).",
+    )
     return parser
 
 
@@ -129,7 +136,7 @@ def main(argv: list[str] | None = None) -> None:
         for _ in range(count):
             pawns.append(pawn)
 
-    pages = make_collage(pawns)
+    pages = make_collage(pawns, margin_mm=ns.margin)
 
     output_lower = ns.output.lower()
     if len(pages) > 1 and not output_lower.endswith(".pdf"):

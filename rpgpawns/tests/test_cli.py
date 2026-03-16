@@ -184,3 +184,47 @@ def test_main_multi_page_png_exits(tmp_path):
     output_path = tmp_path / "output.png"
     with pytest.raises(SystemExit, match="2"):
         main([str(img_path) + ":huge:20", "-o", str(output_path)])
+
+
+def test_main_margin_flag(tmp_path):
+    """The --margin flag sets the page margin."""
+    img_path = tmp_path / "input.png"
+    _create_test_image(img_path)
+    output_path = tmp_path / "output.pdf"
+    main([str(img_path), "-o", str(output_path), "--margin", "10.0"])
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_main_margin_shorthand(tmp_path):
+    """The -m shorthand flag sets the page margin."""
+    img_path = tmp_path / "input.png"
+    _create_test_image(img_path)
+    output_path = tmp_path / "output.pdf"
+    main([str(img_path), "-o", str(output_path), "-m", "15.0"])
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_main_margin_zero(tmp_path):
+    """The --margin flag accepts zero margin."""
+    img_path = tmp_path / "input.png"
+    _create_test_image(img_path)
+    output_path = tmp_path / "output.pdf"
+    main([str(img_path), "-o", str(output_path), "--margin", "0"])
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+def test_main_default_margin(tmp_path):
+    """Without --margin flag, the default margin is used."""
+    img_path = tmp_path / "input.png"
+    _create_test_image(img_path)
+    output_path = tmp_path / "output.pdf"
+    main([str(img_path), "-o", str(output_path)])
+
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
