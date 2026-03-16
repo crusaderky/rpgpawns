@@ -45,15 +45,15 @@ Examples
 
 Convert a single image (medium size, one copy)::
 
-   rpgpawns goblin.png
+   rpgpawns guard.png
 
-Convert two images, making the second one large with three copies::
+Convert two images, making the second one small with three copies::
 
-   rpgpawns goblin.png knight.jpg:large:3 -o pawns.pdf
+   rpgpawns guard.png goblin.jpg:small:3 -o pawns.pdf
 
-Place four small copies of the same token on a page::
+Place 6 large copies of the same token on multiple pages::
 
-   rpgpawns skeleton.jpg:small:4 -o skeletons.pdf
+   rpgpawns dragon.jpg:large:6 -o dragons.pdf
 
 Mix different sizes::
 
