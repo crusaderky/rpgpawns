@@ -75,6 +75,27 @@ def test_parse_multiple_with_counts():
     ]
 
 
+def test_parse_path_with_unrecognized_modifier():
+    """A path with colon and unrecognized modifier treats entire string as path."""
+    assert parse_image_args(["path:foo.jpg"]) == [("path:foo.jpg", PawnSize.MEDIUM, 1)]
+
+
+def test_parse_path_with_colon_and_text():
+    """A path with colon followed by text (not size/digit) treats entire string as
+    path.
+    """
+    assert parse_image_args(["image:v2.png"]) == [("image:v2.png", PawnSize.MEDIUM, 1)]
+
+
+def test_parse_path_with_alphanumeric_suffix():
+    """A path with alphanumeric suffix that's not a size treats entire string as
+    path.
+    """
+    assert parse_image_args(["image:abc123.png"]) == [
+        ("image:abc123.png", PawnSize.MEDIUM, 1)
+    ]
+
+
 # ---------------------------------------------------------------------------
 # main() integration tests
 # ---------------------------------------------------------------------------
