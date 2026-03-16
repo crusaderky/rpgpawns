@@ -2,30 +2,28 @@ Command-line interface
 ======================
 
 rpgpawns provides a ``rpgpawns`` command that converts one or more images into
-paper-cut pawns and arranges them on a printable A4 page.
+paper-cut pawns and arranges them on printable A4 pages.
 
 Synopsis
 --------
 
 .. code-block:: text
 
-   rpgpawns [-h] [-o OUTPUT] IMAGE_OR_MODIFIER [IMAGE_OR_MODIFIER ...]
+   rpgpawns [-h] [-o OUTPUT] IMAGE[:SIZE][:COUNT] [IMAGE[:SIZE][:COUNT] ...]
 
 Positional arguments
 --------------------
 
-``IMAGE_OR_MODIFIER``
-   Image files (``.jpg`` or ``.png``), each optionally followed by a modifier
-   specifying a **size** (``small``, ``medium``, ``large``, ``huge``), a
-   **count**, or both separated by a colon (e.g. ``small:2``, ``large``,
-   ``3``, ``medium:4``).
+``IMAGE[:SIZE][:COUNT]``
+   Image files (``.jpg`` or ``.png``) with an optional **size** and **count**
+   appended after colons.  Valid forms:
 
-   If no modifier is given after an image, it defaults to **medium:1** (one
-   medium pawn).
+   - ``foo.jpg`` — one medium pawn (default)
+   - ``foo.jpg:2`` — two medium pawns
+   - ``foo.jpg:large`` — one large pawn
+   - ``foo.jpg:large:2`` — two large pawns
 
-   Size shortcuts: ``small``, ``medium``, ``large``, ``huge`` alone set the
-   size with count 1.  A bare number (e.g. ``3``) sets the count while
-   keeping the default size (medium).
+   Available sizes: ``small``, ``medium`` (default), ``large``, ``huge``.
 
 Options
 -------
@@ -34,6 +32,10 @@ Options
    Path for the output file. The format is determined by the file extension:
    ``.pdf``, ``.png``, or ``.jpg`` are supported.
    Defaults to ``output.pdf``.
+
+   When the pawns do not fit on a single page, multiple A4 pages are generated.
+   Multi-page output is only supported for ``.pdf``; attempting to write
+   multiple pages to ``.png`` or ``.jpg`` will produce an error.
 
 ``-h``, ``--help``
    Show the help message and exit.
@@ -47,15 +49,16 @@ Convert a single image (medium size, one copy)::
 
 Convert two images, making the second one large with three copies::
 
-   rpgpawns goblin.png knight.jpg large:3 -o pawns.pdf
+   rpgpawns goblin.png knight.jpg:large:3 -o pawns.pdf
 
 Place four small copies of the same token on a page::
 
-   rpgpawns skeleton.jpg small:4 -o skeletons.pdf
+   rpgpawns skeleton.jpg:small:4 -o skeletons.pdf
 
 Mix different sizes::
 
-   rpgpawns dragon.png huge boss.png large minion.jpg small:6 -o encounter.pdf
+   rpgpawns dragon.png:huge boss.png:large minion.jpg:small:6 -o encounter.pdf
 
-The output is an A4 page (210 mm × 297 mm) at 300 DPI.  Smaller pawns are
-automatically packed into unused slots of larger pawn rows when possible.
+The output is one or more A4 pages (210 mm × 297 mm) at 300 DPI.  Smaller
+pawns are automatically packed into unused slots of larger pawn rows when
+possible.

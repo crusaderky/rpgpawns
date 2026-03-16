@@ -18,10 +18,10 @@ Quick start
 
 From the command line::
 
-   rpgpawns goblin.png knight.jpg x2 -o pawns.pdf
+   rpgpawns goblin.png knight.jpg:2 -o pawns.pdf
 
 This reads ``goblin.png`` and ``knight.jpg``, processes each into a pawn
-(with ``knight.jpg`` duplicated twice), arranges them on an A4 page, and
+(with ``knight.jpg`` duplicated twice), arranges them on A4 pages, and
 writes the result to ``pawns.pdf``.
 
 From Python:
@@ -34,8 +34,13 @@ From Python:
    goblin = make_pawn(Image.open("goblin.png"))
    knight = make_pawn(Image.open("knight.jpg"))
 
-   collage = make_collage([goblin, knight, knight])
-   collage.save("pawns.pdf", dpi=(300, 300))
+   pages = make_collage([goblin, knight, knight])
+   pages[0].save(
+       "pawns.pdf",
+       dpi=(300, 300),
+       save_all=True,
+       append_images=pages[1:],
+   )
 
 
 Pawn sizes

@@ -28,7 +28,7 @@ class PawnSize(enum.Enum):
     """Pawn size presets.
 
     Each size defines the maximum width and single-image height for the
-    pawn.  See :data:`PAWN_SPECS` for the exact dimensions.
+    pawn.  See :data:`~rpgpawns.pawn.PAWN_SPECS` for the exact dimensions.
     """
 
     SMALL = "small"
@@ -118,9 +118,9 @@ def make_pawn(
 
     - 300 DPI
     - The original image is scaled to fit within the dimensions specified by
-      *size* (see :data:`PAWN_SPECS`), preserving aspect ratio
+      *size* (see :data:`~rpgpawns.pawn.PAWN_SPECS`), preserving aspect ratio
     - The image is duplicated along its top edge, mirrored vertically
-    - White padding (at least :data:`MIN_PADDING_MM`) is added at the top and
+    - White padding (at least :data:`~rpgpawns.pawn.MIN_PADDING_MM`) is added at the top and
       bottom so that all pawns of the same *size* have identical total height
     - A thin faint grey border is drawn around the entire image
 
@@ -220,7 +220,7 @@ def make_collage(pawns: Sequence[Image.Image]) -> list[Image.Image]:
     Pawns are packed into rows from top to bottom.  Tallest pawns are
     placed first; when the next pawn has a different height a new row is
     started.  Within a row, pawns are placed left to right with
-    :data:`COLLAGE_SPACING_MM` between them.  Pawns already include
+    :data:`~rpgpawns.pawn.COLLAGE_SPACING_MM` between them.  Pawns already include
     built-in top/bottom padding, so no extra vertical gap is added
     between rows.
 

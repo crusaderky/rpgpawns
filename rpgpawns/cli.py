@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import re
 
 from PIL import Image
 
@@ -11,25 +10,24 @@ from rpgpawns.pawn import DPI, PawnSize, make_collage, make_pawn
 
 _SIZE_NAMES = {s.value for s in PawnSize}
 
-# Matches modifiers like "small:2", "large", "3", "medium:4"
-_MODIFIER_RE = re.compile(
-    r"^(?:(?P<size>[a-z]+):(?P<count>\d+)"  # size:count
-    r"|(?P<size_only>[a-z]+)"  # size alone
-    r"|(?P<count_only>\d+))$",  # count alone
-    re.IGNORECASE,
-)
-
 
 def parse_image_args(
     args: list[str],
 ) -> list[tuple[str, PawnSize, int]]:
-    """Parse interleaved image paths and ``[size][:count]`` modifiers.
+    """Parse image arguments in ``path[:size][:count]`` format.
+
+    Each argument is a single string that encodes the image path and
+    optional size and count separated by colons.  Valid forms::
+
+        foo.jpg
+        foo.jpg:2
+        foo.jpg:medium
+        foo.jpg:medium:2
 
     Parameters
     ----------
     args:
-        List of positional arguments, e.g.
-        ``["foo.jpg", "small:2", "bar.png", "large"]``.
+        List of positional arguments.
 
     Returns
     -------
@@ -38,33 +36,51 @@ def parse_image_args(
     Raises
     ------
     ValueError
-        If a modifier has no preceding image, has a count < 1, or
-        specifies an unknown size name.
+        If an argument has a count < 1 or specifies an unknown size name.
     """
     result: list[tuple[str, PawnSize, int]] = []
     for arg in args:
-        m = _MODIFIER_RE.match(arg)
-        if m and (
-            m.group("size_only") in _SIZE_NAMES
-            or m.group("size") in _SIZE_NAMES
-            or m.group("count_only") is not None
-        ):
-            if not result:
-                raise ValueError(f"Modifier '{arg}' has no preceding image file")
+        parts = arg.rsplit(":", 2)
 
-            size_str = m.group("size") or m.group("size_only")
-            count_str = m.group("count") or m.group("count_only")
+        if len(parts) == 3:
+            path, size_str, count_str = parts
+        elif len(parts) == 2:
+            path = parts[0]
+            tail = parts[1]
+            if tail.isdigit():
+                size_str = None
+                count_str = tail
+            elif tail.lower() in _SIZE_NAMES:
+                size_str = tail
+                count_str = None
+            else:
+                # Not a recognised modifier — treat entire arg as a path
+                path = arg
+                size_str = None
+                count_str = None
+        else:
+            path = arg
+            size_str = None
+            count_str = None
 
-            size = PawnSize(size_str) if size_str else result[-1][1]
-            count = int(count_str) if count_str else 1
+        if size_str is not None:
+            if size_str.lower() not in _SIZE_NAMES:
+                raise ValueError(
+                    f"Unknown size '{size_str}' in '{arg}'. "
+                    f"Valid sizes: {', '.join(sorted(_SIZE_NAMES))}"
+                )
+            size = PawnSize(size_str.lower())
+        else:
+            size = PawnSize.MEDIUM
 
+        if count_str is not None:
+            count = int(count_str)
             if count < 1:
                 raise ValueError(f"Count must be at least 1, got '{arg}'")
-
-            path = result[-1][0]
-            result[-1] = (path, size, count)
         else:
-            result.append((arg, PawnSize.MEDIUM, 1))
+            count = 1
+
+        result.append((path, size, count))
     return result
 
 
@@ -79,11 +95,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "images",
         nargs="+",
-        metavar="IMAGE_OR_MODIFIER",
+        metavar="IMAGE",
         help=(
-            "Image files (.jpg/.png) optionally followed by a size/count "
-            "modifier: small:2, medium:3, large, huge:1, or just a count "
-            "like 3 (defaults to medium)."
+            "Image files with optional size and count: "
+            "IMAGE[:SIZE][:COUNT]. "
+            "Sizes: small, medium (default), large, huge. "
+            "Examples: foo.jpg, foo.jpg:2, foo.jpg:large, foo.jpg:large:2."
         ),
     )
     parser.add_argument(

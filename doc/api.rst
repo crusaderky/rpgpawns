@@ -33,7 +33,12 @@ Constants
 
    Output resolution in dots per inch (300).
 
-.. autodata:: rpgpawns.pawn.PADDING_MM
+.. autodata:: rpgpawns.pawn.MIN_PADDING_MM
    :no-value:
 
-   White padding added at the top and bottom of each pawn in millimetres (4).
+   Minimum white padding added at the top and bottom of each pawn in millimetres.
+
+.. autodata:: rpgpawns.pawn.COLLAGE_SPACING_MM
+   :no-value:
+
+   Horizontal spacing between pawns in the collage in millimetres.
