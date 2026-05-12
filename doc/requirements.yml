@@ -12,5 +12,5 @@ dependencies:
 - pillow !=12.2.0
 - pip
 - pip:
-  - pillow>=10.0
+  - pillow>=10.0, !=12.2.0
 
