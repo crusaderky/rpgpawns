@@ -1,11 +1,6 @@
 rpgpawns: Convert any image to a paper-cut pawn for board games and tabletop RPGs
 =================================================================================
 
-.. note::
-
-   The easiest way to use rpgpawns is directly in your browser — no installation
-   needed. `Try it online <https://crusaderky.github.io/rpgpawns/>`_.
-
 **rpgpawns** converts any image into a printable paper-cut pawn suitable for
 board games and tabletop RPGs such as Dungeons & Dragons and Pathfinder.
 
@@ -21,7 +16,14 @@ Given an input image, rpgpawns will:
 Quick start
 -----------
 
-From the command line::
+Online
+^^^^^^
+You can run `rpgpawns in your web browser <https://crusaderky.github.io/rpgpawns/>`_.
+Just select your image(s), tweak the settings as desired, and generate the PDF file.
+
+Command line
+^^^^^^^^^^^^
+.. code-block:: bash
 
    rpgpawns goblin.png knight.jpg:2 -o pawns.pdf
 
@@ -29,7 +31,8 @@ This reads ``goblin.png`` and ``knight.jpg``, processes each into a pawn
 (with ``knight.jpg`` duplicated twice), arranges them on A4 pages, and
 writes the result to ``pawns.pdf``.
 
-From Python:
+Python API
+^^^^^^^^^^
 
 .. code-block:: python
 
