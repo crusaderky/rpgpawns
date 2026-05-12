@@ -1,6 +1,14 @@
 Installation
 ============
 
+.. note::
+
+   The easiest way to run rpgpawns is `directly in your browser
+   <https://crusaderky.github.io/rpgpawns/>`_ - no installation needed.
+   The instructions below are to install the command line tool and Python API and are
+   not necessary for most people.
+
+
 Required dependencies
 ---------------------
 

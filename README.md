@@ -8,4 +8,6 @@
 
 Convert any image to a paper-cut pawn for board games and tabletop RPGs
 
+Web version at https://crusaderky.github.io/rpgpawns/
+
 Full documentation at http://rpgpawns.readthedocs.io/

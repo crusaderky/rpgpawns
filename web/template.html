@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rpgpawns</title>
+    <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f4f4f5; color: #111; min-height: 100vh; }
+    main { max-width: 880px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+    h1 { font-size: 2rem; font-weight: 700; margin-bottom: .3rem; }
+    .subtitle { color: #666; margin-bottom: 2rem; font-size: .95rem; }
+    section {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    }
+    #drop-zone {
+      border: 2px dashed #c8c8d0;
+      border-radius: 8px;
+      padding: 2.5rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .18s, background .18s;
+      user-select: none;
+    }
+    #drop-zone.drag-over { border-color: #4a90e2; background: #f0f6ff; }
+    #drop-zone p { color: #666; margin-bottom: .4rem; }
+    .browse-link {
+      color: #4a90e2;
+      text-decoration: underline;
+      cursor: pointer;
+      font: inherit;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left;
+      padding: .45rem .75rem;
+      border-bottom: 2px solid #ebebeb;
+      color: #555;
+      font-size: .82rem;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    td { padding: .5rem .75rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    select, input[type="number"] {
+      border: 1px solid #d4d4d8;
+      border-radius: 5px;
+      padding: .35rem .55rem;
+      font: inherit;
+      font-size: .9rem;
+      background: #fff;
+      color: #111;
+    }
+    select:focus, input[type="number"]:focus {
+      outline: 2px solid #4a90e2;
+      border-color: transparent;
+    }
+    .remove-btn {
+      background: none;
+      border: 1px solid #e0e0e0;
+      border-radius: 5px;
+      padding: .2rem .6rem;
+      cursor: pointer;
+      color: #999;
+      font-size: 1.1rem;
+      line-height: 1.2;
+      transition: background .12s, border-color .12s, color .12s;
+    }
+    .remove-btn:hover { background: #fff0f0; border-color: #f9a0a0; color: #c00; }
+    #options-section label { display: flex; align-items: center; gap: .75rem; font-size: .95rem; }
+    #options-section input[type="number"] { width: 84px; }
+    #action-section { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    #create-pdf-btn {
+      background: #4a90e2;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      padding: .75rem 2rem;
+      font: 600 1rem system-ui, sans-serif;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    #create-pdf-btn:hover:not(:disabled) { background: #357abd; }
+    #create-pdf-btn:disabled { background: #aecaf0; cursor: not-allowed; }
+    #status-msg { color: #555; font-size: .9rem; }
+    #status-msg.error { color: #c00; }
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,.94);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      z-index: 100;
+    }
+    #loading-overlay p { color: #555; font-size: .95rem; }
+    #loading-note { font-size: .8rem !important; color: #999 !important; margin-top: -.5rem; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid #e0e0e0;
+      border-top-color: #4a90e2;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+      <p id="loading-text">Loading rpgpawns…</p>
+      <p id="loading-note">First load downloads ~50 MB — please wait</p>
+    </div>
+
+    <main>
+      <header>
+        <h1>rpgpawns</h1>
+        <p class="subtitle">
+          Convert images to paper-cut pawns for tabletop RPGs &mdash; runs entirely in
+          your browser &mdash;
+          <a href="https://github.com/crusaderky/rpgpawns/">Home</a> &middot;
+          <a href="http://rpgpawns.readthedocs.io/">Docs</a>
+        </p>
+      </header>
+
+      <section>
+        <div id="drop-zone">
+          <p>&#128462; Drop images here</p>
+          <p>or <button class="browse-link" id="browse-btn">browse files</button></p>
+          <input
+            type="file"
+            id="file-input"
+            multiple
+            accept="image/*"
+            style="display:none"
+          >
+        </div>
+      </section>
+
+      <section id="images-section" style="display:none">
+        <table>
+          <thead>
+            <tr>
+              <th>Preview</th>
+              <th>File</th>
+              <th>Size</th>
+              <th>Copies</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="images-tbody"></tbody>
+        </table>
+      </section>
+
+      <section id="options-section">
+        <label>
+          Page margin (mm):
+          <input type="number" id="margin" value="5" min="0" max="30" step="0.5">
+        </label>
+      </section>
+
+      <section id="action-section">
+        <button id="create-pdf-btn" disabled>Create PDF</button>
+        <p id="status-msg"></p>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.29.4/full/pyodide.js"></script>
+    <script>
+    "use strict";
+const WHEEL_B64 = "__RPGPAWNS_WHEEL_B64__";
+const WHEEL_NAME = "__RPGPAWNS_WHEEL_NAME__";
+
+let pyodide = null;
+let rows = [];   // [{file, id, blobUrl}]
+let nextId = 0;
+
+const loadingOverlay = document.getElementById("loading-overlay");
+const loadingText    = document.getElementById("loading-text");
+const fileInput      = document.getElementById("file-input");
+const dropZone       = document.getElementById("drop-zone");
+const imagesSection  = document.getElementById("images-section");
+const imagesTbody    = document.getElementById("images-tbody");
+const createPdfBtn   = document.getElementById("create-pdf-btn");
+const statusMsg      = document.getElementById("status-msg");
+
+/* ── Pyodide initialisation ─────────────────────────────────────────── */
+
+async function initPyodide() {
+  try {
+    loadingText.textContent = "Loading Pyodide…";
+    pyodide = await loadPyodide();
+
+    loadingText.textContent = "Loading Pillow…";
+    await pyodide.loadPackage(["pillow", "micropip"]);
+
+    loadingText.textContent = "Installing rpgpawns…";
+    const wheelBytes = Uint8Array.from(atob(WHEEL_B64), c => c.charCodeAt(0));
+    pyodide.FS.writeFile(`/tmp/${WHEEL_NAME}`, wheelBytes);
+    const micropip = pyodide.pyimport("micropip");
+    await micropip.install(`emfs:///tmp/${WHEEL_NAME}`);
+
+    loadingOverlay.style.display = "none";
+    refreshBtn();
+  } catch (err) {
+    loadingText.textContent = `Initialization failed: ${err.message}`;
+    document.getElementById("loading-note").textContent =
+      "Try reloading the page. Check the browser console for details.";
+    console.error(err);
+  }
+}
+
+/* ── Image list management ──────────────────────────────────────────── */
+
+function refreshBtn() {
+  createPdfBtn.disabled = !pyodide || rows.length === 0;
+}
+
+function addFiles(files) {
+  for (const file of files) {
+    if (!file.type.startsWith("image/")) continue;
+
+    const id      = nextId++;
+    const blobUrl = URL.createObjectURL(file);
+    rows.push({ file, id, blobUrl });
+
+    const tr = document.createElement("tr");
+    tr.dataset.id = id;
+
+    // thumbnail
+    const img = document.createElement("img");
+    img.src = blobUrl;
+    img.style.cssText = "width:54px;height:54px;object-fit:contain;display:block;";
+    const tdThumb = document.createElement("td");
+    tdThumb.appendChild(img);
+
+    // filename
+    const tdName = document.createElement("td");
+    tdName.textContent = file.name;
+    tdName.style.wordBreak = "break-all";
+
+    // size selector
+    const sizeSelect = document.createElement("select");
+    sizeSelect.className = "size-select";
+    for (const [val, lbl] of [
+      ["small",  "Small  (20 × 28 mm)"],
+      ["medium", "Medium (28 × 48 mm)"],
+      ["large",  "Large  (48 × 63 mm)"],
+      ["huge",   "Huge   (75 × 99 mm)"],
+    ]) {
+      const opt = new Option(lbl, val, val === "medium", val === "medium");
+      sizeSelect.add(opt);
+    }
+    const tdSize = document.createElement("td");
+    tdSize.appendChild(sizeSelect);
+
+    // copy count
+    const countInput = document.createElement("input");
+    countInput.type = "number";
+    countInput.className = "count-input";
+    countInput.value = "1";
+    countInput.min  = "1";
+    countInput.max  = "99";
+    countInput.style.width = "68px";
+    const tdCount = document.createElement("td");
+    tdCount.appendChild(countInput);
+
+    // remove button
+    const removeBtn = document.createElement("button");
+    removeBtn.className   = "remove-btn";
+    removeBtn.textContent = "×";
+    removeBtn.title       = "Remove";
+    removeBtn.onclick = () => {
+      rows = rows.filter(r => r.id !== id);
+      URL.revokeObjectURL(blobUrl);
+      tr.remove();
+      if (rows.length === 0) imagesSection.style.display = "none";
+      refreshBtn();
+    };
+    const tdRemove = document.createElement("td");
+    tdRemove.appendChild(removeBtn);
+
+    tr.append(tdThumb, tdName, tdSize, tdCount, tdRemove);
+    imagesTbody.appendChild(tr);
+  }
+
+  if (rows.length > 0) imagesSection.style.display = "";
+  refreshBtn();
+}
+
+/* ── PDF generation ─────────────────────────────────────────────────── */
+
+async function createPDF() {
+  createPdfBtn.disabled = true;
+  statusMsg.className   = "";
+  statusMsg.textContent = "Generating PDF…";
+
+  try {
+    // Write each image file into Pyodide's virtual FS
+    const pyEntries = [];
+    for (const { file, id } of rows) {
+      const path = `/tmp/_rpgpawns_${id}`;
+      pyodide.FS.writeFile(path, new Uint8Array(await file.arrayBuffer()));
+      const tr    = imagesTbody.querySelector(`tr[data-id="${id}"]`);
+      const size  = tr.querySelector(".size-select").value;
+      const count = Math.max(1, parseInt(tr.querySelector(".count-input").value, 10) || 1);
+      pyEntries.push([path, size, count]);
+    }
+
+    const marginMm = parseFloat(document.getElementById("margin").value) || 5;
+    pyodide.globals.set("_web_entries",    pyodide.toPy(pyEntries));
+    pyodide.globals.set("_web_margin_mm",  marginMm);
+
+    const pdfProxy = await pyodide.runPythonAsync(`
+import io
+from PIL import Image as _PilImage
+from rpgpawns import PawnSize, make_pawn, make_collage
+
+_pawns = []
+for _path, _size_str, _count in _web_entries:
+    _pawn = make_pawn(_PilImage.open(_path), size=PawnSize(_size_str))
+    _pawns.extend([_pawn] * _count)
+
+_pages = make_collage(_pawns, margin_mm=_web_margin_mm)
+_buf = io.BytesIO()
+_pages[0].save(
+    _buf, format="PDF", dpi=(300, 300),
+    save_all=True, append_images=_pages[1:],
+)
+_buf.getvalue()
+`);
+
+    const pdfBytes = pdfProxy.toJs();
+    pdfProxy.destroy();
+
+    window.open(URL.createObjectURL(new Blob([pdfBytes], { type: "application/pdf" })), "_blank");
+    statusMsg.textContent = "PDF created — check your new browser tab.";
+
+    // clean up FS temp files
+    for (const { id } of rows) {
+      try { pyodide.FS.unlink(`/tmp/_rpgpawns_${id}`); } catch (_) { /* ignore */ }
+    }
+  } catch (err) {
+    statusMsg.className   = "error";
+    statusMsg.textContent = `Error: ${err.message}`;
+    console.error(err);
+  } finally {
+    refreshBtn();
+  }
+}
+
+/* ── Event wiring ───────────────────────────────────────────────────── */
+
+document.getElementById("browse-btn").addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", e => { addFiles(e.target.files); fileInput.value = ""; });
+
+dropZone.addEventListener("dragover",  e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+dropZone.addEventListener("dragleave", ()  => dropZone.classList.remove("drag-over"));
+dropZone.addEventListener("drop", e => {
+  e.preventDefault();
+  dropZone.classList.remove("drag-over");
+  addFiles(e.dataTransfer.files);
+});
+
+createPdfBtn.addEventListener("click", createPDF);
+
+initPyodide();
+    </script>
+  </body>
+</html>
