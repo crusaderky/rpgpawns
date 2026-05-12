@@ -1,6 +1,11 @@
 rpgpawns: Convert any image to a paper-cut pawn for board games and tabletop RPGs
 =================================================================================
 
+.. note::
+
+   The easiest way to use rpgpawns is directly in your browser — no installation
+   needed. `Try it online <https://crusaderky.github.io/rpgpawns/>`_.
+
 **rpgpawns** converts any image into a printable paper-cut pawn suitable for
 board games and tabletop RPGs such as Dungeons & Dragons and Pathfinder.
 

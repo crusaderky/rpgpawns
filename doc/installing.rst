@@ -1,6 +1,11 @@
 Installation
 ============
 
+.. note::
+
+   The easiest way to run rpgpawns is directly in your browser — no installation
+   needed. `Try it online <https://crusaderky.github.io/rpgpawns/>`_.
+
 Required dependencies
 ---------------------
 
