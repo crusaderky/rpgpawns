@@ -40,7 +40,15 @@ def parse_image_args(
     """
     result: list[tuple[str, PawnSize, int]] = []
     for arg in args:
-        parts = arg.rsplit(":", 2)
+        # Windows paths start with a drive letter like "C:\", which contains a
+        # colon that must not be treated as a path/modifier separator.
+        if len(arg) >= 2 and arg[1] == ":" and arg[0].isalpha():
+            drive, tail_arg = arg[:2], arg[2:]
+        else:
+            drive, tail_arg = "", arg
+        parts = tail_arg.rsplit(":", 2)
+        if drive:
+            parts[0] = drive + parts[0]
 
         if len(parts) == 3:
             path, size_str, count_str = parts

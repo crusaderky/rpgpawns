@@ -36,9 +36,8 @@ jobs:
           - py311
           - py314
         include:
-          # Pillow main is broken, please retest later
-          # - os: ubuntu-latest
-          #   environment: upstream
+          - os: ubuntu-latest
+            environment: upstream
           - os: ubuntu-latest
             environment: nogil
 
@@ -52,7 +51,7 @@ jobs:
 
       - uses: prefix-dev/setup-pixi@v0
         with:
-          pixi-version: v0.65.0
+          pixi-version: v0.68.1
           environments: ${{ matrix.environment }}
           cache: ${{ matrix.environment != 'upstream' }}
           locked: ${{ matrix.environment != 'upstream' }}

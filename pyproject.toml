@@ -146,7 +146,7 @@ platforms = ["linux-64", "linux-aarch64", "osx-64", "osx-arm64", "win-64"]
 
 [tool.pixi.dependencies]
 python = "*"
-pillow = "*"
+pillow = "!=12.2.0" # Broken
 
 [tool.pixi.feature.lint.dependencies]
 lefthook = "*"
