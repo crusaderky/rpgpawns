@@ -96,6 +96,27 @@ def test_parse_path_with_alphanumeric_suffix():
     ]
 
 
+def test_parse_windows_drive_letter_count():
+    """Windows absolute paths with drive letters should not confuse the parser."""
+    assert parse_image_args(["C:\\path\\to\\image.png:3"]) == [
+        ("C:\\path\\to\\image.png", PawnSize.MEDIUM, 3)
+    ]
+
+
+def test_parse_windows_drive_letter_no_modifier():
+    """Windows absolute paths without modifiers should be treated as plain paths."""
+    assert parse_image_args(["C:\\path\\to\\image.png"]) == [
+        ("C:\\path\\to\\image.png", PawnSize.MEDIUM, 1)
+    ]
+
+
+def test_parse_windows_drive_letter_size_and_count():
+    """Windows absolute paths with size and count should be parsed correctly."""
+    assert parse_image_args(["C:\\path\\to\\image.png:large:2"]) == [
+        ("C:\\path\\to\\image.png", PawnSize.LARGE, 2)
+    ]
+
+
 # ---------------------------------------------------------------------------
 # main() integration tests
 # ---------------------------------------------------------------------------
